@@ -966,6 +966,165 @@
         .celebrating {
             animation: celebrate 0.5s ease-in-out;
         }
+
+        /* Calendar View Styles */
+        .calendar-day {
+            background: var(--card);
+            border-radius: 8px;
+            padding: 8px;
+            min-height: 100px;
+            border: 1px solid var(--border);
+            overflow-y: auto;
+            max-height: 200px;
+        }
+
+        .calendar-day.today {
+            border: 2px solid var(--accent);
+            background: linear-gradient(to bottom, rgba(76, 175, 80, 0.1), var(--card));
+        }
+
+        .calendar-day-header {
+            font-size: 0.8em;
+            font-weight: 700;
+            margin-bottom: 6px;
+            text-align: center;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .calendar-day.today .calendar-day-header {
+            color: var(--accent);
+        }
+
+        .calendar-task {
+            font-size: 0.75em;
+            padding: 4px 6px;
+            background: var(--border);
+            border-radius: 4px;
+            margin-bottom: 4px;
+            border-left: 2px solid var(--status-not-started);
+            cursor: pointer;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .calendar-task:hover {
+            background: var(--text-dim);
+            color: white;
+            transform: translateX(2px);
+        }
+
+        .calendar-task.status-in-progress {
+            border-left-color: var(--status-in-progress);
+        }
+
+        .calendar-task.status-done {
+            border-left-color: var(--status-done);
+            opacity: 0.5;
+        }
+
+        .calendar-task.priority-high {
+            border-left-color: var(--priority-high);
+            border-left-width: 3px;
+        }
+
+        /* Board View Styles */
+        .board-column {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 12px;
+            min-height: 400px;
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .board-column-header {
+            font-size: 0.9em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .board-column.not-started .board-column-header {
+            color: var(--status-not-started);
+            border-bottom-color: var(--status-not-started);
+        }
+
+        .board-column.in-progress .board-column-header {
+            color: var(--status-in-progress);
+            border-bottom-color: var(--status-in-progress);
+        }
+
+        .board-column.done .board-column-header {
+            color: var(--status-done);
+            border-bottom-color: var(--status-done);
+        }
+
+        .board-tasks {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .board-task-card {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 12px;
+            border-left: 3px solid var(--status-not-started);
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px var(--shadow);
+        }
+
+        .board-task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow);
+        }
+
+        .board-task-card.status-in-progress {
+            border-left-color: var(--status-in-progress);
+        }
+
+        .board-task-card.status-done {
+            border-left-color: var(--status-done);
+            opacity: 0.7;
+        }
+
+        .board-task-card.priority-high {
+            border-left-color: var(--priority-high);
+            border-left-width: 4px;
+        }
+
+        .board-task-card.urgent {
+            animation: urgentGlow 2s infinite;
+        }
+
+        .board-task-title {
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 0.95em;
+        }
+
+        .board-task-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            font-size: 0.75em;
+            color: var(--text-dim);
+        }
+
+        @media (max-width: 768px) {
+            #boardContainer {
+                grid-template-columns: 1fr !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1018,6 +1177,30 @@
         <div id="sectionsContainer"></div>
     </div>
 
+    <!-- Calendar View -->
+    <div id="calendarView" style="display: none;">
+        <div style="padding: 12px; background: var(--card); margin: 12px; border-radius: 8px; box-shadow: 0 2px 8px var(--shadow);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <button class="task-btn" style="flex: 0; min-width: auto;" onclick="changeCalendarView(-1)">◀</button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="task-btn" id="weekViewBtn" onclick="setCalendarMode('week')">Week</button>
+                    <button class="task-btn" id="twoWeeksViewBtn" onclick="setCalendarMode('twoWeeks')">2 Weeks</button>
+                    <button class="task-btn" id="monthViewBtn" onclick="setCalendarMode('month')">Month</button>
+                </div>
+                <button class="task-btn" style="flex: 0; min-width: auto;" onclick="changeCalendarView(1)">▶</button>
+            </div>
+            <div id="calendarTitle" style="text-align: center; font-weight: 600; font-size: 1.1em; margin-bottom: 8px;"></div>
+        </div>
+        <div id="calendarGrid" style="display: grid; gap: 8px; padding: 12px;"></div>
+    </div>
+
+    <!-- Board View -->
+    <div id="boardView" style="display: none;">
+        <div style="padding: 12px;">
+            <div id="boardContainer" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;"></div>
+        </div>
+    </div>
+
     <!-- Stats Dashboard View -->
     <div id="statsView" style="display: none;">
         <div class="stats-dashboard">
@@ -1065,8 +1248,12 @@
             <div class="nav-icon">📅</div>
             <div>Calendar</div>
         </button>
-        <button class="nav-btn" data-view="stats">
+        <button class="nav-btn" data-view="board">
             <div class="nav-icon">📊</div>
+            <div>Board</div>
+        </button>
+        <button class="nav-btn" data-view="stats">
+            <div class="nav-icon">📈</div>
             <div>Stats</div>
         </button>
         <button class="nav-btn" data-view="settings">
@@ -1276,6 +1463,8 @@
         let editingTaskId = null;
         let currentFilter = 'all';
         let searchQuery = '';
+        let calendarMode = 'week'; // 'week', 'twoWeeks', 'month'
+        let calendarOffset = 0; // weeks or months to offset from current
         let settings = {
             theme: 'light',
             weekStart: 0,
@@ -1641,6 +1830,10 @@
         function renderAll() {
             if (currentView === 'main') {
                 renderListView();
+            } else if (currentView === 'calendar') {
+                renderCalendarView();
+            } else if (currentView === 'board') {
+                renderBoardView();
             } else if (currentView === 'stats') {
                 renderStatsView();
             }
@@ -2049,6 +2242,196 @@
         }
 
         // ==================== STATS VIEW ====================
+        function renderCalendarView() {
+            const grid = document.getElementById('calendarGrid');
+            const titleEl = document.getElementById('calendarTitle');
+            grid.innerHTML = '';
+
+            const today = new Date();
+            let startDate, numDays;
+
+            if (calendarMode === 'week') {
+                startDate = new Date(today);
+                startDate.setDate(today.getDate() - today.getDay() + (calendarOffset * 7));
+                numDays = 7;
+                grid.style.gridTemplateColumns = 'repeat(7, 1fr)';
+                const endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + 6);
+                titleEl.textContent = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+            } else if (calendarMode === 'twoWeeks') {
+                startDate = new Date(today);
+                startDate.setDate(today.getDate() - today.getDay() + (calendarOffset * 14));
+                numDays = 14;
+                grid.style.gridTemplateColumns = 'repeat(7, 1fr)';
+                const endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + 13);
+                titleEl.textContent = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+            } else if (calendarMode === 'month') {
+                startDate = new Date(today.getFullYear(), today.getMonth() + calendarOffset, 1);
+                startDate.setDate(1 - startDate.getDay());
+                const monthEnd = new Date(today.getFullYear(), today.getMonth() + calendarOffset + 1, 0);
+                const endDate = new Date(monthEnd);
+                endDate.setDate(monthEnd.getDate() + (6 - monthEnd.getDay()));
+                numDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+                grid.style.gridTemplateColumns = 'repeat(7, 1fr)';
+                titleEl.textContent = new Date(today.getFullYear(), today.getMonth() + calendarOffset, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            }
+
+            // Highlight active view button
+            document.getElementById('weekViewBtn').style.background = calendarMode === 'week' ? 'var(--accent)' : 'var(--border)';
+            document.getElementById('weekViewBtn').style.color = calendarMode === 'week' ? 'white' : 'var(--text)';
+            document.getElementById('twoWeeksViewBtn').style.background = calendarMode === 'twoWeeks' ? 'var(--accent)' : 'var(--border)';
+            document.getElementById('twoWeeksViewBtn').style.color = calendarMode === 'twoWeeks' ? 'white' : 'var(--text)';
+            document.getElementById('monthViewBtn').style.background = calendarMode === 'month' ? 'var(--accent)' : 'var(--border)';
+            document.getElementById('monthViewBtn').style.color = calendarMode === 'month' ? 'white' : 'var(--text)';
+
+            for (let i = 0; i < numDays; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+                
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-day';
+                
+                if (date.toDateString() === today.toDateString()) {
+                    dayEl.classList.add('today');
+                }
+
+                const isCurrentMonth = calendarMode === 'month' ? 
+                    date.getMonth() === (today.getMonth() + calendarOffset) : true;
+                
+                if (!isCurrentMonth) {
+                    dayEl.style.opacity = '0.4';
+                }
+
+                const dayTasks = getTasksForDate(date);
+                
+                dayEl.innerHTML = `
+                    <div class="calendar-day-header">
+                        ${date.toLocaleDateString('en-US', { weekday: 'short' })}<br>
+                        ${calendarMode === 'month' ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : date.getDate()}
+                    </div>
+                    ${dayTasks.map(task => {
+                        let classes = `calendar-task status-${task.status || 'not-started'} priority-${task.priority}`;
+                        if (isUrgent(task)) classes += ' urgent';
+                        return `
+                            <div class="${classes}" onclick="editTask(${task.id})" title="${task.title}">
+                                ${task.title.length > 25 ? task.title.substring(0, 25) + '...' : task.title}
+                            </div>
+                        `;
+                    }).join('')}
+                `;
+
+                grid.appendChild(dayEl);
+            }
+        }
+
+        function getTasksForDate(date) {
+            const dateStr = date.toISOString().split('T')[0];
+            return tasks.filter(t => t.dueDate === dateStr);
+        }
+
+        function setCalendarMode(mode) {
+            calendarMode = mode;
+            calendarOffset = 0;
+            renderCalendarView();
+        }
+
+        function changeCalendarView(direction) {
+            calendarOffset += direction;
+            renderCalendarView();
+        }
+
+        // ==================== BOARD VIEW ====================
+        function renderBoardView() {
+            const container = document.getElementById('boardContainer');
+            container.innerHTML = '';
+
+            const columns = [
+                { id: 'not-started', title: '⚪ Not Started', tasks: [] },
+                { id: 'in-progress', title: '🟡 In Progress', tasks: [] },
+                { id: 'done', title: '✅ Done', tasks: [] }
+            ];
+
+            // Filter and sort tasks
+            let filteredTasks = filterTasks(tasks);
+
+            filteredTasks.forEach(task => {
+                const status = task.status || 'not-started';
+                const column = columns.find(c => c.id === status);
+                if (column) column.tasks.push(task);
+            });
+
+            // Sort by priority within each column
+            columns.forEach(column => {
+                column.tasks.sort((a, b) => {
+                    const priorityOrder = { high: 0, medium: 1, low: 2 };
+                    return priorityOrder[a.priority] - priorityOrder[b.priority];
+                });
+            });
+
+            columns.forEach(column => {
+                const columnEl = document.createElement('div');
+                columnEl.className = `board-column ${column.id}`;
+                
+                columnEl.innerHTML = `
+                    <div class="board-column-header">
+                        <span>${column.title}</span>
+                        <span style="background: var(--border); padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">${column.tasks.length}</span>
+                    </div>
+                    <div class="board-tasks"></div>
+                `;
+
+                const tasksContainer = columnEl.querySelector('.board-tasks');
+                
+                if (column.tasks.length === 0) {
+                    tasksContainer.innerHTML = '<div class="empty-state" style="padding: 20px; font-size: 0.9em;">No tasks</div>';
+                } else {
+                    column.tasks.forEach(task => {
+                        const card = createBoardTaskCard(task);
+                        tasksContainer.appendChild(card);
+                    });
+                }
+
+                container.appendChild(columnEl);
+            });
+        }
+
+        function createBoardTaskCard(task) {
+            const card = document.createElement('div');
+            let classes = `board-task-card status-${task.status || 'not-started'} priority-${task.priority}`;
+            if (isUrgent(task)) classes += ' urgent';
+            card.className = classes;
+            card.onclick = () => editTask(task.id);
+
+            let dueText = '';
+            if (task.dueDate) {
+                const due = parseLocalDate(task.dueDate);
+                if (due) {
+                    dueText = task.dueTime 
+                        ? `${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ${formatTime12Hour(task.dueTime)}`
+                        : due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                }
+            }
+
+            const completedSubtasks = task.subtasks ? task.subtasks.filter(s => s.completed).length : 0;
+            const totalSubtasks = task.subtasks ? task.subtasks.length : 0;
+
+            card.innerHTML = `
+                <div class="board-task-title">${task.title}</div>
+                <div class="board-task-meta">
+                    <span class="category-badge category-${task.category}">${icons[task.category]}</span>
+                    ${task.duration ? `<span>⏱️ ${task.duration}m</span>` : ''}
+                    ${dueText ? `<span ${isOverdue(task) ? 'style="color: var(--overdue); font-weight: 600;"' : ''}>📅 ${dueText}</span>` : ''}
+                    ${totalSubtasks > 0 ? `<span>✓ ${completedSubtasks}/${totalSubtasks}</span>` : ''}
+                    ${task.energy ? `<span class="energy-badge energy-${task.energy}">${task.energy}</span>` : ''}
+                    ${task.project ? `<span class="project-badge">${task.project}</span>` : ''}
+                </div>
+            `;
+
+            return card;
+        }
+
+        // ==================== STATS VIEW ====================
         function renderStatsView() {
             const total = tasks.length;
             const completed = tasks.filter(t => t.status === 'done').length;
@@ -2314,11 +2697,11 @@
                     btn.classList.add('active');
 
                     document.getElementById('mainView').style.display = view === 'main' ? 'block' : 'none';
+                    document.getElementById('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
+                    document.getElementById('boardView').style.display = view === 'board' ? 'block' : 'none';
                     document.getElementById('statsView').style.display = view === 'stats' ? 'block' : 'none';
 
-                    if (view === 'calendar') {
-                        alert('Calendar view coming in next update! 📅');
-                    } else if (view === 'settings') {
+                    if (view === 'settings') {
                         document.getElementById('themeSelect').value = settings.theme;
                         document.getElementById('weekStartSelect').value = settings.weekStart;
                         document.getElementById('defaultDuration').value = settings.defaultDuration;
