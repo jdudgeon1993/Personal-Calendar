@@ -972,10 +972,23 @@
             background: var(--card);
             border-radius: 8px;
             padding: 8px;
-            min-height: 100px;
+            min-height: 120px;
             border: 1px solid var(--border);
             overflow-y: auto;
-            max-height: 200px;
+            max-height: 300px;
+        }
+
+        @media (max-width: 768px) {
+            .calendar-day {
+                min-height: 100px;
+                max-height: 200px;
+                font-size: 0.85em;
+            }
+            
+            #calendarGrid {
+                gap: 4px !important;
+                padding: 8px !important;
+            }
         }
 
         .calendar-day.today {
@@ -984,12 +997,23 @@
         }
 
         .calendar-day-header {
-            font-size: 0.8em;
+            font-size: 0.75em;
             font-weight: 700;
             margin-bottom: 6px;
             text-align: center;
             padding-bottom: 4px;
             border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: var(--card);
+            z-index: 1;
+        }
+
+        @media (max-width: 768px) {
+            .calendar-day-header {
+                font-size: 0.7em;
+                padding-bottom: 2px;
+            }
         }
 
         .calendar-day.today .calendar-day-header {
@@ -997,7 +1021,7 @@
         }
 
         .calendar-task {
-            font-size: 0.75em;
+            font-size: 0.7em;
             padding: 4px 6px;
             background: var(--border);
             border-radius: 4px;
@@ -1008,6 +1032,14 @@
             text-overflow: ellipsis;
             white-space: nowrap;
             transition: all 0.2s;
+        }
+
+        @media (max-width: 768px) {
+            .calendar-task {
+                font-size: 0.65em;
+                padding: 3px 4px;
+                margin-bottom: 3px;
+            }
         }
 
         .calendar-task:hover {
@@ -1028,6 +1060,14 @@
         .calendar-task.priority-high {
             border-left-color: var(--priority-high);
             border-left-width: 3px;
+        }
+
+        .calendar-task-count {
+            font-size: 0.75em;
+            color: var(--text-dim);
+            text-align: center;
+            padding: 4px;
+            font-weight: 600;
         }
 
         /* Board View Styles */
@@ -1184,8 +1224,8 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <button class="task-btn" style="flex: 0; min-width: auto;" onclick="changeCalendarView(-1)">◀</button>
                 <div style="display: flex; gap: 8px;">
+                    <button class="task-btn" id="dayViewBtn" onclick="setCalendarMode('day')">Day</button>
                     <button class="task-btn" id="weekViewBtn" onclick="setCalendarMode('week')">Week</button>
-                    <button class="task-btn" id="twoWeeksViewBtn" onclick="setCalendarMode('twoWeeks')">2 Weeks</button>
                     <button class="task-btn" id="monthViewBtn" onclick="setCalendarMode('month')">Month</button>
                 </div>
                 <button class="task-btn" style="flex: 0; min-width: auto;" onclick="changeCalendarView(1)">▶</button>
@@ -1319,8 +1359,19 @@
                         </select>
                     </div>
                     <div class="form-group">
+                        <label class="form-label">Start Time</label>
+                        <input type="time" id="taskStartTime" onchange="calculateDuration()">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">End Time</label>
+                        <input type="time" id="taskEndTime" onchange="calculateDuration()">
+                    </div>
+                    <div class="form-group">
                         <label class="form-label">Duration (mins)</label>
-                        <input type="number" id="taskDuration" placeholder="30" min="5" step="5">
+                        <input type="number" id="taskDuration" placeholder="Auto-calculated" min="5" step="5" readonly style="background: var(--border);">
                     </div>
                 </div>
 
@@ -1348,11 +1399,12 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Tags (press Enter to add)</label>
+                    <label class="form-label">Tags (press Enter or click + to add)</label>
                     <div class="tag-input-container" id="tagContainer" onclick="document.getElementById('tagInput').focus()">
                         <input type="text" id="tagInput" 
                             style="border: none; background: transparent; flex: 1; min-width: 100px; outline: none;"
                             placeholder="Add tags...">
+                        <button type="button" class="task-btn" onclick="addTagFromInput()" style="flex: 0; padding: 4px 8px; font-size: 0.9em;">+ Add</button>
                     </div>
                 </div>
 
@@ -1548,8 +1600,8 @@
         let editingTaskId = null;
         let currentFilter = 'all';
         let searchQuery = '';
-        let calendarMode = 'week'; // 'week', 'twoWeeks', 'month'
-        let calendarOffset = 0; // weeks or months to offset from current
+        let calendarMode = 'week'; // 'day', 'week', 'month'
+        let calendarOffset = 0; // days, weeks or months to offset from current
         let userToken = null; // Sync token
         let isSyncing = false;
         let lastSyncTime = null;
@@ -2570,7 +2622,30 @@
             document.getElementById('taskDueDate').value = task.dueDate || '';
             document.getElementById('taskDueTime').value = task.dueTime || '';
             document.getElementById('taskTimeBlock').value = task.timeBlock || '';
-            document.getElementById('taskDuration').value = task.duration || '';
+            
+            // Set start/end times if available, otherwise use duration
+            if (task.startTime && task.endTime) {
+                document.getElementById('taskStartTime').value = task.startTime;
+                document.getElementById('taskEndTime').value = task.endTime;
+                document.getElementById('taskDuration').value = task.duration || '';
+            } else if (task.duration && task.dueTime) {
+                // Calculate start/end from due time and duration
+                const [hours, minutes] = task.dueTime.split(':').map(Number);
+                const endMinutes = hours * 60 + minutes;
+                const startMinutes = endMinutes - parseInt(task.duration);
+                
+                const startHours = Math.floor(startMinutes / 60);
+                const startMins = startMinutes % 60;
+                
+                document.getElementById('taskStartTime').value = `${String(startHours).padStart(2, '0')}:${String(startMins).padStart(2, '0')}`;
+                document.getElementById('taskEndTime').value = task.dueTime;
+                document.getElementById('taskDuration').value = task.duration;
+            } else {
+                document.getElementById('taskStartTime').value = '';
+                document.getElementById('taskEndTime').value = '';
+                document.getElementById('taskDuration').value = task.duration || '';
+            }
+            
             document.getElementById('taskEnergy').value = task.energy || '';
             document.getElementById('taskProject').value = task.project || '';
             document.getElementById('taskNotes').value = task.notes || '';
@@ -2629,21 +2704,25 @@
             const today = new Date();
             let startDate, numDays;
 
-            if (calendarMode === 'week') {
+            if (calendarMode === 'day') {
+                // Show just today
+                startDate = new Date(today);
+                startDate.setDate(today.getDate() + calendarOffset);
+                numDays = 1;
+                grid.style.gridTemplateColumns = '1fr';
+                titleEl.textContent = startDate.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    month: 'long', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                });
+            } else if (calendarMode === 'week') {
                 startDate = new Date(today);
                 startDate.setDate(today.getDate() - today.getDay() + (calendarOffset * 7));
                 numDays = 7;
                 grid.style.gridTemplateColumns = 'repeat(7, 1fr)';
                 const endDate = new Date(startDate);
                 endDate.setDate(startDate.getDate() + 6);
-                titleEl.textContent = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-            } else if (calendarMode === 'twoWeeks') {
-                startDate = new Date(today);
-                startDate.setDate(today.getDate() - today.getDay() + (calendarOffset * 14));
-                numDays = 14;
-                grid.style.gridTemplateColumns = 'repeat(7, 1fr)';
-                const endDate = new Date(startDate);
-                endDate.setDate(startDate.getDate() + 13);
                 titleEl.textContent = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
             } else if (calendarMode === 'month') {
                 startDate = new Date(today.getFullYear(), today.getMonth() + calendarOffset, 1);
@@ -2657,10 +2736,10 @@
             }
 
             // Highlight active view button
+            document.getElementById('dayViewBtn').style.background = calendarMode === 'day' ? 'var(--accent)' : 'var(--border)';
+            document.getElementById('dayViewBtn').style.color = calendarMode === 'day' ? 'white' : 'var(--text)';
             document.getElementById('weekViewBtn').style.background = calendarMode === 'week' ? 'var(--accent)' : 'var(--border)';
             document.getElementById('weekViewBtn').style.color = calendarMode === 'week' ? 'white' : 'var(--text)';
-            document.getElementById('twoWeeksViewBtn').style.background = calendarMode === 'twoWeeks' ? 'var(--accent)' : 'var(--border)';
-            document.getElementById('twoWeeksViewBtn').style.color = calendarMode === 'twoWeeks' ? 'white' : 'var(--text)';
             document.getElementById('monthViewBtn').style.background = calendarMode === 'month' ? 'var(--accent)' : 'var(--border)';
             document.getElementById('monthViewBtn').style.color = calendarMode === 'month' ? 'white' : 'var(--text)';
 
@@ -2684,20 +2763,37 @@
 
                 const dayTasks = getTasksForDate(date);
                 
+                // Determine max tasks to show based on mode
+                const maxTasksToShow = calendarMode === 'day' ? 50 : calendarMode === 'week' ? 5 : 3;
+                const visibleTasks = dayTasks.slice(0, maxTasksToShow);
+                const remainingCount = dayTasks.length - maxTasksToShow;
+
+                const headerText = calendarMode === 'day' 
+                    ? date.toLocaleDateString('en-US', { weekday: 'long' })
+                    : calendarMode === 'month' 
+                        ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                        : `${date.toLocaleDateString('en-US', { weekday: 'short' })}<br>${date.getDate()}`;
+
                 dayEl.innerHTML = `
-                    <div class="calendar-day-header">
-                        ${date.toLocaleDateString('en-US', { weekday: 'short' })}<br>
-                        ${calendarMode === 'month' ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : date.getDate()}
-                    </div>
-                    ${dayTasks.map(task => {
+                    <div class="calendar-day-header">${headerText}</div>
+                    ${visibleTasks.map(task => {
                         let classes = `calendar-task status-${task.status || 'not-started'} priority-${task.priority}`;
                         if (isUrgent(task)) classes += ' urgent';
+                        
+                        // Smart truncation based on view mode
+                        let displayTitle = task.title;
+                        const maxLength = calendarMode === 'day' ? 50 : calendarMode === 'week' ? 20 : 12;
+                        if (displayTitle.length > maxLength) {
+                            displayTitle = displayTitle.substring(0, maxLength) + '...';
+                        }
+                        
                         return `
                             <div class="${classes}" onclick="editTask(${task.id})" title="${task.title}">
-                                ${task.title.length > 25 ? task.title.substring(0, 25) + '...' : task.title}
+                                ${displayTitle}
                             </div>
                         `;
                     }).join('')}
+                    ${remainingCount > 0 ? `<div class="calendar-task-count">+${remainingCount} more</div>` : ''}
                 `;
 
                 grid.appendChild(dayEl);
@@ -2849,6 +2945,40 @@
         }
 
         // ==================== MODAL MANAGEMENT ====================
+        function calculateDuration() {
+            const startTime = document.getElementById('taskStartTime').value;
+            const endTime = document.getElementById('taskEndTime').value;
+            
+            if (startTime && endTime) {
+                const [startHours, startMinutes] = startTime.split(':').map(Number);
+                const [endHours, endMinutes] = endTime.split(':').map(Number);
+                
+                const startTotalMinutes = startHours * 60 + startMinutes;
+                const endTotalMinutes = endHours * 60 + endMinutes;
+                
+                let duration = endTotalMinutes - startTotalMinutes;
+                
+                // Handle overnight tasks
+                if (duration < 0) {
+                    duration += 24 * 60;
+                }
+                
+                document.getElementById('taskDuration').value = duration;
+            }
+        }
+
+        function addTagFromInput() {
+            const input = document.getElementById('tagInput');
+            const value = input.value.trim();
+            
+            if (value) {
+                const tagEl = createTagElement(value);
+                const container = document.getElementById('tagContainer');
+                container.insertBefore(tagEl, input);
+                input.value = '';
+            }
+        }
+
         function openModal(modalId) {
             document.getElementById(modalId).classList.add('active');
         }
@@ -3022,6 +3152,8 @@
                     dueDate: document.getElementById('taskDueDate').value,
                     dueTime: document.getElementById('taskDueTime').value,
                     timeBlock: document.getElementById('taskTimeBlock').value,
+                    startTime: document.getElementById('taskStartTime').value,
+                    endTime: document.getElementById('taskEndTime').value,
                     duration: document.getElementById('taskDuration').value,
                     energy: document.getElementById('taskEnergy').value,
                     project: document.getElementById('taskProject').value,
