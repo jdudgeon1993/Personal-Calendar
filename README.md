@@ -1136,6 +1136,7 @@
         <div class="header-top">
             <div class="app-title">✨ Ultimate Planner Pro</div>
             <div class="header-controls">
+                <button class="icon-btn" id="syncBtn" title="Cloud Sync" onclick="openSyncModal()">☁️</button>
                 <button class="icon-btn" id="statsBtn" title="Stats Dashboard">📊</button>
                 <button class="icon-btn" id="settingsBtn" title="Settings">⚙️</button>
                 <button class="icon-btn" id="themeBtn" title="Change Theme">🎨</button>
@@ -1454,7 +1455,91 @@
         </div>
     </div>
 
+    <!-- Sync Modal -->
+    <div class="modal" id="syncModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>☁️ Cloud Sync</span>
+                <button class="close-btn" onclick="closeModal('syncModal')">×</button>
+            </div>
+            
+            <div id="syncStatusView">
+                <!-- Not logged in view -->
+                <div id="notLoggedInView">
+                    <p style="text-align: center; color: var(--text-dim); margin-bottom: 20px;">
+                        Sync your tasks across all devices!<br>
+                        Get a simple token to access your data anywhere.
+                    </p>
+                    
+                    <button class="btn btn-primary" onclick="registerNewToken()" style="width: 100%; margin-bottom: 10px;">
+                        🎟️ Get New Sync Token
+                    </button>
+                    
+                    <div style="text-align: center; margin: 20px 0; color: var(--text-dim);">
+                        — OR —
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Enter Existing Token</label>
+                        <input type="text" id="tokenInput" placeholder="PLAN-ABC123" style="text-transform: uppercase;">
+                    </div>
+                    <button class="btn btn-secondary" onclick="loginWithToken()" style="width: 100%;">
+                        🔐 Login with Token
+                    </button>
+                </div>
+
+                <!-- Logged in view -->
+                <div id="loggedInView" style="display: none;">
+                    <div style="background: var(--bg); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span style="font-weight: 600;">Your Token:</span>
+                            <button class="task-btn" onclick="copyToken()">📋 Copy</button>
+                        </div>
+                        <div style="font-family: monospace; font-size: 1.2em; padding: 12px; background: var(--card); border-radius: 6px; text-align: center; font-weight: 700; letter-spacing: 2px;" id="displayToken"></div>
+                        <p style="font-size: 0.85em; color: var(--text-dim); margin-top: 8px; text-align: center;">
+                            ⚠️ Save this somewhere safe! You'll need it to login on other devices.
+                        </p>
+                    </div>
+
+                    <div style="background: var(--bg); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                        <h4 style="margin-bottom: 12px;">📊 Sync Status</h4>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                            <span>Tasks Synced:</span>
+                            <span id="syncedTaskCount">-</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                            <span>Last Sync:</span>
+                            <span id="lastSyncDisplay">Never</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                            <span>Status:</span>
+                            <span id="syncStatusText">✅ Synced</span>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="manualSync()" style="width: 100%; margin-bottom: 10px;" id="syncNowBtn">
+                        🔄 Sync Now
+                    </button>
+                    
+                    <button class="btn btn-secondary" onclick="logout()" style="width: 100%;">
+                        🚪 Logout
+                    </button>
+                </div>
+
+                <!-- Loading view -->
+                <div id="syncLoadingView" style="display: none; text-align: center; padding: 40px;">
+                    <div style="font-size: 3em; margin-bottom: 16px;" class="loading">⏳</div>
+                    <p id="syncLoadingText">Processing...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // ==================== CONFIGURATION ====================
+        // Update this with your Render server URL!
+        const API_BASE_URL = 'https://rtd-n-line-api.onrender.com/'; // ← CHANGE THIS!
+        
         // ==================== STATE ====================
         let tasks = [];
         let templates = [];
@@ -1465,6 +1550,9 @@
         let searchQuery = '';
         let calendarMode = 'week'; // 'week', 'twoWeeks', 'month'
         let calendarOffset = 0; // weeks or months to offset from current
+        let userToken = null; // Sync token
+        let isSyncing = false;
+        let lastSyncTime = null;
         let settings = {
             theme: 'light',
             weekStart: 0,
@@ -1492,6 +1580,287 @@
             'done': '✅'
         };
 
+        // ==================== CLOUD SYNC FUNCTIONS ====================
+        
+        async function registerNewToken() {
+            showSyncLoading('Getting your token...');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/planner/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    userToken = data.token;
+                    localStorage.setItem('plannerToken', userToken);
+                    
+                    // Upload current data to server
+                    await syncToServer();
+                    
+                    showLoggedInView();
+                    alert(`✅ Your sync token: ${userToken}\n\n⚠️ SAVE THIS TOKEN!\nYou'll need it to access your data on other devices.`);
+                } else {
+                    throw new Error(data.error || 'Registration failed');
+                }
+            } catch (error) {
+                console.error('Register error:', error);
+                hideSyncLoading();
+                alert('❌ Failed to register: ' + error.message);
+            }
+        }
+
+        async function loginWithToken() {
+            const input = document.getElementById('tokenInput');
+            const token = input.value.trim().toUpperCase();
+            
+            if (!token) {
+                alert('Please enter a token');
+                return;
+            }
+            
+            showSyncLoading('Logging in...');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/planner/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    userToken = token;
+                    localStorage.setItem('plannerToken', userToken);
+                    
+                    // Load data from server
+                    await syncFromServer();
+                    
+                    showLoggedInView();
+                    alert('✅ Logged in successfully!');
+                } else {
+                    throw new Error(data.error || 'Invalid token');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                hideSyncLoading();
+                alert('❌ Login failed: ' + error.message);
+            }
+        }
+
+        async function syncToServer() {
+            if (!userToken) return;
+            
+            isSyncing = true;
+            updateSyncButton();
+            
+            try {
+                // Save tasks
+                const tasksResponse = await fetch(`${API_BASE_URL}/api/planner/tasks/${userToken}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tasks })
+                });
+                
+                if (!tasksResponse.ok) throw new Error('Failed to sync tasks');
+                
+                // Save settings
+                await fetch(`${API_BASE_URL}/api/planner/settings/${userToken}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ settings })
+                });
+                
+                // Save stats
+                await fetch(`${API_BASE_URL}/api/planner/stats/${userToken}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stats })
+                });
+                
+                lastSyncTime = new Date();
+                updateSyncStatus();
+                console.log('✅ Synced to server');
+                
+            } catch (error) {
+                console.error('Sync to server error:', error);
+            } finally {
+                isSyncing = false;
+                updateSyncButton();
+            }
+        }
+
+        async function syncFromServer() {
+            if (!userToken) return;
+            
+            isSyncing = true;
+            updateSyncButton();
+            
+            try {
+                // Load tasks
+                const tasksResponse = await fetch(`${API_BASE_URL}/api/planner/tasks/${userToken}`);
+                const tasksData = await tasksResponse.json();
+                
+                if (tasksData.success && tasksData.tasks.length > 0) {
+                    tasks = tasksData.tasks;
+                }
+                
+                // Load settings
+                const settingsResponse = await fetch(`${API_BASE_URL}/api/planner/settings/${userToken}`);
+                const settingsData = await settingsResponse.json();
+                
+                if (settingsData.success && settingsData.settings) {
+                    settings = { ...settings, ...settingsData.settings };
+                    applyTheme(settings.theme);
+                }
+                
+                // Load stats
+                const statsResponse = await fetch(`${API_BASE_URL}/api/planner/stats/${userToken}`);
+                const statsData = await statsResponse.json();
+                
+                if (statsData.success && statsData.stats) {
+                    stats = { ...stats, ...statsData.stats };
+                }
+                
+                saveData(); // Save to localStorage too
+                lastSyncTime = new Date();
+                updateSyncStatus();
+                renderAll();
+                console.log('✅ Synced from server');
+                
+            } catch (error) {
+                console.error('Sync from server error:', error);
+            } finally {
+                isSyncing = false;
+                updateSyncButton();
+            }
+        }
+
+        async function manualSync() {
+            if (isSyncing) return;
+            
+            const btn = document.getElementById('syncNowBtn');
+            const originalText = btn.textContent;
+            btn.textContent = '⏳ Syncing...';
+            btn.disabled = true;
+            
+            await syncToServer();
+            
+            btn.textContent = originalText;
+            btn.disabled = false;
+            
+            alert('✅ Sync complete!');
+        }
+
+        function logout() {
+            if (confirm('Logout and stop syncing? Your data will remain on this device.')) {
+                userToken = null;
+                localStorage.removeItem('plannerToken');
+                lastSyncTime = null;
+                showNotLoggedInView();
+                updateSyncButton();
+                alert('👋 Logged out successfully');
+            }
+        }
+
+        function copyToken() {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(userToken);
+                alert('✅ Token copied to clipboard!');
+            } else {
+                // Fallback
+                const input = document.createElement('input');
+                input.value = userToken;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                alert('✅ Token copied!');
+            }
+        }
+
+        function openSyncModal() {
+            if (userToken) {
+                showLoggedInView();
+            } else {
+                showNotLoggedInView();
+            }
+            openModal('syncModal');
+        }
+
+        function showSyncLoading(text) {
+            document.getElementById('notLoggedInView').style.display = 'none';
+            document.getElementById('loggedInView').style.display = 'none';
+            document.getElementById('syncLoadingView').style.display = 'block';
+            document.getElementById('syncLoadingText').textContent = text;
+        }
+
+        function hideSyncLoading() {
+            document.getElementById('syncLoadingView').style.display = 'none';
+        }
+
+        function showNotLoggedInView() {
+            hideSyncLoading();
+            document.getElementById('notLoggedInView').style.display = 'block';
+            document.getElementById('loggedInView').style.display = 'none';
+        }
+
+        function showLoggedInView() {
+            hideSyncLoading();
+            document.getElementById('notLoggedInView').style.display = 'none';
+            document.getElementById('loggedInView').style.display = 'block';
+            document.getElementById('displayToken').textContent = userToken;
+            updateSyncStatus();
+        }
+
+        function updateSyncStatus() {
+            if (!userToken) return;
+            
+            document.getElementById('syncedTaskCount').textContent = tasks.length;
+            
+            if (lastSyncTime) {
+                const now = new Date();
+                const diff = now - lastSyncTime;
+                const minutes = Math.floor(diff / 60000);
+                
+                if (minutes < 1) {
+                    document.getElementById('lastSyncDisplay').textContent = 'Just now';
+                } else if (minutes < 60) {
+                    document.getElementById('lastSyncDisplay').textContent = `${minutes}m ago`;
+                } else {
+                    const hours = Math.floor(minutes / 60);
+                    document.getElementById('lastSyncDisplay').textContent = `${hours}h ago`;
+                }
+            }
+            
+            document.getElementById('syncStatusText').textContent = isSyncing ? '⏳ Syncing...' : '✅ Synced';
+        }
+
+        function updateSyncButton() {
+            const btn = document.getElementById('syncBtn');
+            if (userToken) {
+                btn.textContent = isSyncing ? '⏳' : '☁️';
+                btn.style.color = 'var(--accent)';
+            } else {
+                btn.textContent = '☁️';
+                btn.style.color = 'var(--text-dim)';
+            }
+        }
+
+        // Auto-sync on changes (debounced)
+        let syncTimeout;
+        function autoSync() {
+            if (!userToken) return;
+            
+            clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(() => {
+                syncToServer();
+            }, 2000); // Sync 2 seconds after last change
+        }
+
         // ==================== INITIALIZATION ====================
         function init() {
             loadData();
@@ -1509,15 +1878,22 @@
             const savedSettings = localStorage.getItem('ultimatePlannerSettings');
             const savedStats = localStorage.getItem('ultimatePlannerStats');
             const savedTemplates = localStorage.getItem('ultimatePlannerTemplates');
+            const savedToken = localStorage.getItem('plannerToken');
             
             if (saved) tasks = JSON.parse(saved);
             if (savedSettings) settings = { ...settings, ...JSON.parse(savedSettings) };
             if (savedStats) stats = { ...stats, ...JSON.parse(savedStats) };
             if (savedTemplates) templates = JSON.parse(savedTemplates);
+            if (savedToken) {
+                userToken = savedToken;
+                // Sync from server on startup
+                syncFromServer();
+            }
             
             applyTheme(settings.theme);
             generateRecurringTasks();
             updateStreak();
+            updateSyncButton();
         }
 
         function saveData() {
@@ -1525,6 +1901,9 @@
             localStorage.setItem('ultimatePlannerSettings', JSON.stringify(settings));
             localStorage.setItem('ultimatePlannerStats', JSON.stringify(stats));
             localStorage.setItem('ultimatePlannerTemplates', JSON.stringify(templates));
+            
+            // Auto-sync if logged in
+            autoSync();
         }
 
         // ==================== DATE/TIME UTILITIES ====================
