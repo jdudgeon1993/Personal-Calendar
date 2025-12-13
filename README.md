@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Ultimate Planner Pro ✨</title>
     <style>
@@ -27,11 +27,51 @@
             --border: #334155; --shadow: rgba(0,0,0,0.3); --shadow-lg: rgba(0,0,0,0.5);
         }
 
+        html {
+            width: 100%;
+            overflow-x: hidden;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg-primary); color: var(--text-primary); line-height: 1.6;
-            -webkit-font-smoothing: antialiased; overflow-x: hidden; padding-bottom: 80px;
+            -webkit-font-smoothing: antialiased; 
+            overflow-x: hidden; 
+            padding-bottom: 80px;
             transition: var(--transition);
+            width: 100%;
+            max-width: 100vw;
+        }
+
+        /* Mobile overflow fix */
+        * {
+            max-width: 100%;
+        }
+
+        .container {
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: var(--spacing-md);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: var(--spacing-sm);
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .board-container {
+                grid-template-columns: 1fr;
+            }
         }
 
         .header {
@@ -523,6 +563,65 @@
         }
 
         html { scroll-behavior: smooth; }
+
+        /* Mobile Responsive Fixes */
+        @media (max-width: 768px) {
+            .container {
+                padding: var(--spacing-sm);
+            }
+
+            .header {
+                padding: var(--spacing-sm) var(--spacing-md);
+            }
+
+            .logo {
+                font-size: 20px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr !important;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            .board-container {
+                grid-template-columns: 1fr !important;
+            }
+
+            .timeline-container {
+                margin-left: calc(-1 * var(--spacing-sm));
+                margin-right: calc(-1 * var(--spacing-sm));
+            }
+
+            .search-box {
+                margin-left: 0;
+                margin-right: 0;
+            }
+
+            .filter-chips {
+                margin-left: 0;
+                margin-right: 0;
+            }
+
+            .modal-content {
+                padding: var(--spacing-md);
+            }
+
+            .task-card {
+                padding: var(--spacing-sm);
+            }
+
+            .task-title {
+                font-size: 14px;
+            }
+
+            .badge {
+                font-size: 11px;
+                padding: 3px 6px;
+            }
+        }
     </style>
 </head>
 <body>
