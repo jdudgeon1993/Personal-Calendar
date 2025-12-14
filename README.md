@@ -174,6 +174,12 @@
 
         .task-checkbox:hover { border-color: var(--success); transform: scale(1.1); }
 
+        .task-checkbox.in-progress {
+            background: var(--bg-primary);
+            border-color: var(--primary);
+            animation: checkPop 0.3s cubic-bezier(0.68,-0.55,0.265,1.55);
+        }
+
         .task-checkbox.checked {
             background: var(--success); border-color: var(--success);
             animation: checkPop 0.3s cubic-bezier(0.68,-0.55,0.265,1.55);
@@ -1460,14 +1466,29 @@
             
             const draggableAttr = isBoard && !isCompleted ? 'draggable="true"' : '';
 
+            // Determine checkbox state based on task status
+            let checkboxClass = '';
+            let checkboxContent = '';
+            if (task.status === 'done') {
+                checkboxClass = 'checked';
+                checkboxContent = '';
+            } else if (task.status === 'in-progress') {
+                checkboxClass = 'in-progress';
+                checkboxContent = '<div style="width: 8px; height: 2px; background: var(--primary); border-radius: 1px;"></div>';
+            } else {
+                checkboxClass = '';
+                checkboxContent = '';
+            }
+
             return `
-                <div class="task-card priority-${task.priority} ${isCompleted ? 'completed' : ''} ${statusClass}" 
-                     data-id="${task.id}" 
+                <div class="task-card priority-${task.priority} ${isCompleted ? 'completed' : ''} ${statusClass}"
+                     data-id="${task.id}"
                      ${draggableAttr}>
                     <div class="task-header">
-                        <div class="task-checkbox ${isCompleted ? 'checked' : ''}" 
-                             data-id="${task.id}" 
-                             onclick="event.stopPropagation(); toggleTaskStatus(${task.id});"></div>
+                        <div class="task-checkbox ${checkboxClass}"
+                             data-id="${task.id}"
+                             onclick="event.stopPropagation(); toggleTaskStatus(${task.id});"
+                             title="Click to cycle status: Not Started → In Progress → Done">${checkboxContent}</div>
                         <div class="task-content">
                             <div class="task-title">${task.title}</div>
                             <div class="task-meta">
@@ -2186,22 +2207,22 @@
             // Drag and drop for task bars
             const draggableBars = document.querySelectorAll('.gantt-task-bar[draggable="true"]');
             draggableBars.forEach(bar => {
-                bar.addEventListener('dragstart', handleDragStart);
-                bar.addEventListener('dragend', handleDragEnd);
+                bar.addEventListener('dragstart', handleGanttDragStart);
+                bar.addEventListener('dragend', handleGanttDragEnd);
             });
 
             // Drop zones for timeline cells
             const cells = document.querySelectorAll('.gantt-timeline-cell');
             cells.forEach(cell => {
-                cell.addEventListener('dragover', handleDragOver);
-                cell.addEventListener('drop', handleDrop);
+                cell.addEventListener('dragover', handleGanttDragOver);
+                cell.addEventListener('drop', handleGanttDrop);
             });
 
             // Render dependency lines
             renderDependencyLines();
         }
 
-        function handleDragStart(e) {
+        function handleGanttDragStart(e) {
             draggedTaskElement = e.target;
             const taskId = parseInt(e.target.dataset.taskId);
             draggedTask = tasks.find(t => t.id === taskId);
@@ -2211,13 +2232,13 @@
             e.dataTransfer.setData('text/html', e.target.innerHTML);
         }
 
-        function handleDragEnd(e) {
+        function handleGanttDragEnd(e) {
             e.target.classList.remove('dragging');
             draggedTaskElement = null;
             draggedTask = null;
         }
 
-        function handleDragOver(e) {
+        function handleGanttDragOver(e) {
             if (e.preventDefault) {
                 e.preventDefault();
             }
@@ -2225,7 +2246,7 @@
             return false;
         }
 
-        function handleDrop(e) {
+        function handleGanttDrop(e) {
             if (e.stopPropagation) {
                 e.stopPropagation();
             }
@@ -2403,7 +2424,14 @@
         function toggleTaskStatus(taskId) {
             const task = tasks.find(t => t.id === taskId);
             if (task) {
-                task.status = task.status === 'done' ? 'not-started' : 'done';
+                // Cycle through: not-started → in-progress → done → not-started
+                if (task.status === 'not-started') {
+                    task.status = 'in-progress';
+                } else if (task.status === 'in-progress') {
+                    task.status = 'done';
+                } else {
+                    task.status = 'not-started';
+                }
                 saveData();
                 render();
             }
