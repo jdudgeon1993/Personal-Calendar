@@ -1144,6 +1144,65 @@
         </div>
     </div>
 
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">⚙️ Settings</h2>
+                <button class="close-btn" onclick="closeSettingsModal()">×</button>
+            </div>
+
+            <div style="padding: var(--spacing-md) 0;">
+                <!-- Theme Settings -->
+                <div style="margin-bottom: var(--spacing-lg);">
+                    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: var(--spacing-md); color: var(--text-primary);">🎨 Appearance</h3>
+                    <div class="form-group">
+                        <label class="form-label">Theme</label>
+                        <div style="display: flex; gap: var(--spacing-sm);">
+                            <button class="btn btn-secondary" onclick="setTheme('light')" id="lightThemeBtn" style="flex: 1;">☀️ Light</button>
+                            <button class="btn btn-secondary" onclick="setTheme('dark')" id="darkThemeBtn" style="flex: 1;">🌙 Dark</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Management -->
+                <div style="margin-bottom: var(--spacing-lg);">
+                    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: var(--spacing-md); color: var(--text-primary);">💾 Data Management</h3>
+
+                    <div class="form-group">
+                        <label class="form-label">Export/Import</label>
+                        <div style="display: flex; gap: var(--spacing-sm); flex-direction: column;">
+                            <button class="btn btn-secondary" onclick="exportData()" style="width: 100%;">
+                                <span>📥</span><span>Export All Tasks</span>
+                            </button>
+                            <label class="btn btn-secondary" style="width: 100%; cursor: pointer; margin: 0;">
+                                <span>📤</span><span>Import Tasks</span>
+                                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <button class="btn" onclick="clearAllTasks()" style="width: 100%; background: var(--error); color: white;">
+                            <span>🗑️</span><span>Clear All Tasks</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- About -->
+                <div>
+                    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: var(--spacing-md); color: var(--text-primary);">ℹ️ About</h3>
+                    <div style="padding: var(--spacing-md); background: var(--bg-tertiary); border-radius: var(--radius-md); font-size: 14px; color: var(--text-secondary);">
+                        <div style="margin-bottom: var(--spacing-sm);"><strong>Personal Calendar & Task Planner</strong></div>
+                        <div>Version 2.0</div>
+                        <div style="margin-top: var(--spacing-sm);">
+                            Features: Tasks, Calendar, Kanban Board, Gantt Chart, Statistics
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_BASE_URL = 'https://rtd-n-line-api.onrender.com';
         let tasks = [];
@@ -1190,6 +1249,7 @@
 
             document.getElementById('themeBtn').addEventListener('click', toggleTheme);
             document.getElementById('syncBtn').addEventListener('click', openSyncModal);
+            document.getElementById('menuBtn').addEventListener('click', openSettingsModal);
             document.getElementById('taskForm').addEventListener('submit', handleTaskSubmit);
 
             document.getElementById('tagInput').addEventListener('keypress', (e) => {
@@ -1216,6 +1276,10 @@
             
             document.getElementById('detailModal').addEventListener('click', (e) => {
                 if (e.target.id === 'detailModal') closeDetailModal();
+            });
+
+            document.getElementById('settingsModal').addEventListener('click', (e) => {
+                if (e.target.id === 'settingsModal') closeSettingsModal();
             });
         }
 
@@ -2666,6 +2730,94 @@
                             onclick="disconnectSync()">Disconnect</button>
                     </div>
                 `;
+            }
+        }
+
+        function openSettingsModal() {
+            document.getElementById('settingsModal').classList.add('active');
+            updateThemeButtons();
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        function updateThemeButtons() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const lightBtn = document.getElementById('lightThemeBtn');
+            const darkBtn = document.getElementById('darkThemeBtn');
+
+            lightBtn.classList.remove('active');
+            darkBtn.classList.remove('active');
+
+            if (currentTheme === 'dark') {
+                darkBtn.classList.add('active');
+                darkBtn.style.background = 'var(--primary)';
+                darkBtn.style.color = 'white';
+                lightBtn.style.background = '';
+                lightBtn.style.color = '';
+            } else {
+                lightBtn.classList.add('active');
+                lightBtn.style.background = 'var(--primary)';
+                lightBtn.style.color = 'white';
+                darkBtn.style.background = '';
+                darkBtn.style.color = '';
+            }
+        }
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            updateThemeButtons();
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(tasks, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `planner-tasks-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const importedTasks = JSON.parse(e.target.result);
+                    if (Array.isArray(importedTasks)) {
+                        if (confirm(`Import ${importedTasks.length} tasks? This will add to your existing tasks.`)) {
+                            tasks = [...tasks, ...importedTasks];
+                            saveData();
+                            render();
+                            closeSettingsModal();
+                            alert('Tasks imported successfully!');
+                        }
+                    } else {
+                        alert('Invalid file format. Please upload a valid task JSON file.');
+                    }
+                } catch (error) {
+                    alert('Error reading file. Please make sure it\'s a valid JSON file.');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset file input
+        }
+
+        function clearAllTasks() {
+            if (confirm('Are you sure you want to delete ALL tasks? This action cannot be undone!')) {
+                if (confirm('Really delete everything? This is your last chance!')) {
+                    tasks = [];
+                    saveData();
+                    render();
+                    closeSettingsModal();
+                    alert('All tasks have been cleared.');
+                }
             }
         }
 
