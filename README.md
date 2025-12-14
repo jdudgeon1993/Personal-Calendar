@@ -532,6 +532,174 @@
             color: var(--text-tertiary);
         }
 
+        .gantt-controls {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+
+        .gantt-control-btn {
+            padding: var(--spacing-xs) var(--spacing-md);
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .gantt-control-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .gantt-control-btn:hover {
+            border-color: var(--primary);
+        }
+
+        .gantt-timeline {
+            position: relative;
+            overflow-x: auto;
+            background: var(--bg-primary);
+            border-radius: var(--radius-md);
+        }
+
+        .gantt-timeline-header {
+            display: flex;
+            position: sticky;
+            top: 0;
+            background: var(--bg-secondary);
+            border-bottom: 2px solid var(--border);
+            z-index: 2;
+        }
+
+        .gantt-timeline-date {
+            flex: 1;
+            min-width: 120px;
+            padding: var(--spacing-sm);
+            text-align: center;
+            border-right: 1px solid var(--border);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .gantt-timeline-date.today {
+            background: var(--primary-light);
+            color: white;
+        }
+
+        .gantt-rows {
+            position: relative;
+        }
+
+        .gantt-row {
+            display: flex;
+            position: relative;
+            min-height: 60px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .gantt-row:hover {
+            background: var(--bg-secondary);
+        }
+
+        .gantt-row-label {
+            position: sticky;
+            left: 0;
+            width: 200px;
+            min-width: 200px;
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--bg-secondary);
+            border-right: 2px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            z-index: 1;
+        }
+
+        .gantt-row-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .gantt-row-subtitle {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .gantt-row-timeline {
+            flex: 1;
+            display: flex;
+            position: relative;
+        }
+
+        .gantt-timeline-cell {
+            flex: 1;
+            min-width: 120px;
+            border-right: 1px solid var(--border);
+            position: relative;
+        }
+
+        .gantt-timeline-cell.today {
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .gantt-task-bar {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 32px;
+            border-radius: var(--radius-sm);
+            padding: 0 var(--spacing-sm);
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 500;
+            color: white;
+            cursor: pointer;
+            transition: var(--transition);
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .gantt-task-bar:hover {
+            filter: brightness(1.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        .gantt-task-bar.priority-high {
+            background: linear-gradient(135deg, var(--priority-high), #DC2626);
+        }
+
+        .gantt-task-bar.priority-medium {
+            background: linear-gradient(135deg, var(--priority-medium), #D97706);
+        }
+
+        .gantt-task-bar.priority-low {
+            background: linear-gradient(135deg, var(--priority-low), #059669);
+        }
+
+        .gantt-task-bar.status-done {
+            opacity: 0.6;
+            text-decoration: line-through;
+        }
+
+        .gantt-empty-state {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--text-secondary);
+        }
+
         /* Global / Nav / Modal Styles */
         .fab {
             position: fixed; bottom: 90px; right: var(--spacing-lg);
@@ -1128,7 +1296,7 @@
                 const dueDate = new Date(task.dueDate);
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                if (dueDate <= today) {
+                if (dueDate < today) {
                     isUrgentOrOverdue = true;
                 }
             }
@@ -1550,9 +1718,74 @@
             draggedTaskId = null;
         }
 
+        let ganttViewMode = 'week'; // 'day', 'week', or 'month'
+
         function renderGantt() {
             const container = document.getElementById('contentArea');
-            
+            const filteredTasks = filterTasks().filter(t => t.dueDate);
+
+            if (filteredTasks.length === 0) {
+                container.innerHTML = `
+                    <div class="gantt-container">
+                        <div class="gantt-header">
+                            <h3 style="font-size: 20px; font-weight: 700;">📊 Gantt Chart</h3>
+                            <div style="font-size: 14px; color: var(--text-secondary);">
+                                Project Timeline Visualization
+                            </div>
+                        </div>
+                        <div class="gantt-empty-state">
+                            <div style="font-size: 48px; margin-bottom: var(--spacing-md);">📅</div>
+                            <div style="font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--spacing-sm);">
+                                No Tasks with Due Dates
+                            </div>
+                            <div style="font-size: 14px;">
+                                Add tasks with due dates to see them in the Gantt chart timeline.
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Calculate date range
+            const { startDate, endDate, dates } = calculateGanttDateRange(filteredTasks);
+
+            // Group tasks by project or category
+            const groupedTasks = groupTasksForGantt(filteredTasks);
+
+            // Build header
+            let headerHTML = '<div class="gantt-timeline-header"><div class="gantt-timeline-date" style="min-width: 200px; border-right: 2px solid var(--border);"></div>';
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            dates.forEach(date => {
+                const isToday = date === todayStr;
+                const dateObj = new Date(date);
+                const label = formatGanttDate(dateObj, ganttViewMode);
+                headerHTML += `<div class="gantt-timeline-date ${isToday ? 'today' : ''}">${label}</div>`;
+            });
+            headerHTML += '</div>';
+
+            // Build rows
+            let rowsHTML = '<div class="gantt-rows">';
+
+            for (const [groupName, groupTasks] of Object.entries(groupedTasks)) {
+                groupTasks.forEach(task => {
+                    const rowHTML = renderGanttRow(task, groupName, dates, startDate);
+                    rowsHTML += rowHTML;
+                });
+            }
+
+            rowsHTML += '</div>';
+
+            // Build controls
+            const controlsHTML = `
+                <div class="gantt-controls">
+                    <button class="gantt-control-btn ${ganttViewMode === 'day' ? 'active' : ''}" onclick="setGanttViewMode('day')">Day</button>
+                    <button class="gantt-control-btn ${ganttViewMode === 'week' ? 'active' : ''}" onclick="setGanttViewMode('week')">Week</button>
+                    <button class="gantt-control-btn ${ganttViewMode === 'month' ? 'active' : ''}" onclick="setGanttViewMode('month')">Month</button>
+                </div>
+            `;
+
             container.innerHTML = `
                 <div class="gantt-container">
                     <div class="gantt-header">
@@ -1561,63 +1794,194 @@
                             Project Timeline Visualization
                         </div>
                     </div>
-                    
-                    <div class="gantt-placeholder">
-                        <div class="gantt-placeholder-icon">🚧</div>
-                        <div class="gantt-placeholder-title">Gantt Chart Coming Soon!</div>
-                        <div class="gantt-placeholder-text">
-                            A fully functional Gantt chart is being developed to give you a visual timeline
-                            of all your tasks and projects. This powerful view will help you manage dependencies,
-                            track progress, and optimize your workflow.
-                        </div>
-                        
-                        <div class="gantt-features">
-                            <div class="gantt-feature">
-                                <div class="gantt-feature-icon">📅</div>
-                                <div class="gantt-feature-title">Timeline View</div>
-                                <div class="gantt-feature-desc">Visualize tasks across days, weeks, and months</div>
-                            </div>
-                            
-                            <div class="gantt-feature">
-                                <div class="gantt-feature-icon">🔗</div>
-                                <div class="gantt-feature-title">Dependencies</div>
-                                <div class="gantt-feature-desc">Link tasks that depend on each other</div>
-                            </div>
-                            
-                            <div class="gantt-feature">
-                                <div class="gantt-feature-icon">📊</div>
-                                <div class="gantt-feature-title">Progress Tracking</div>
-                                <div class="gantt-feature-desc">See completion status at a glance</div>
-                            </div>
-                            
-                            <div class="gantt-feature">
-                                <div class="gantt-feature-icon">👥</div>
-                                <div class="gantt-feature-title">Resource Planning</div>
-                                <div class="gantt-feature-desc">Manage workload and capacity</div>
-                            </div>
-                            
-                            <div class="gantt-feature">
-                                <div class="gantt-feature-icon">🎯</div>
-                                <div class="gantt-feature-title">Milestones</div>
-                                <div class="gantt-feature-desc">Track key project milestones</div>
-                            </div>
-                            
-                            <div class="gantt-feature">
-                                <div class="gantt-feature-icon">⚡</div>
-                                <div class="gantt-feature-title">Critical Path</div>
-                                <div class="gantt-feature-desc">Identify tasks that impact deadlines</div>
-                            </div>
-                        </div>
-                        
-                        <div style="margin-top: var(--spacing-xl); padding: var(--spacing-md); background: var(--bg-tertiary); border-radius: var(--radius-md);">
-                            <div style="font-size: 14px; color: var(--text-secondary);">
-                                💡 <strong>Tip:</strong> In the meantime, use the <strong>Calendar</strong> view to see your tasks 
-                                organized by time, or the <strong>Board</strong> view to track progress across different stages.
-                            </div>
-                        </div>
+                    ${controlsHTML}
+                    <div class="gantt-timeline">
+                        ${headerHTML}
+                        ${rowsHTML}
                     </div>
                 </div>
             `;
+
+            attachGanttListeners();
+        }
+
+        function calculateGanttDateRange(tasks) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let minDate = new Date(today);
+            let maxDate = new Date(today);
+
+            // Find min and max dates from tasks
+            tasks.forEach(task => {
+                if (task.dueDate) {
+                    const taskDate = new Date(task.dueDate);
+                    if (taskDate < minDate) minDate = taskDate;
+                    if (taskDate > maxDate) maxDate = taskDate;
+                }
+            });
+
+            // Expand range based on view mode
+            if (ganttViewMode === 'day') {
+                // Show 2 weeks
+                minDate = new Date(today);
+                minDate.setDate(minDate.getDate() - 3);
+                maxDate = new Date(today);
+                maxDate.setDate(maxDate.getDate() + 11);
+            } else if (ganttViewMode === 'week') {
+                // Show 8 weeks
+                minDate = new Date(today);
+                minDate.setDate(minDate.getDate() - 7);
+                maxDate = new Date(today);
+                maxDate.setDate(maxDate.getDate() + 49);
+            } else {
+                // Month view - show 6 months
+                minDate = new Date(today);
+                minDate.setMonth(minDate.getMonth() - 1);
+                maxDate = new Date(today);
+                maxDate.setMonth(maxDate.getMonth() + 5);
+            }
+
+            // Generate date array
+            const dates = [];
+            const currentDate = new Date(minDate);
+
+            if (ganttViewMode === 'day') {
+                while (currentDate <= maxDate) {
+                    dates.push(currentDate.toISOString().split('T')[0]);
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+            } else if (ganttViewMode === 'week') {
+                // Start from Monday of the week
+                currentDate.setDate(currentDate.getDate() - currentDate.getDay() + 1);
+                while (currentDate <= maxDate) {
+                    dates.push(currentDate.toISOString().split('T')[0]);
+                    currentDate.setDate(currentDate.getDate() + 7);
+                }
+            } else {
+                // Month view
+                currentDate.setDate(1);
+                while (currentDate <= maxDate) {
+                    dates.push(currentDate.toISOString().split('T')[0]);
+                    currentDate.setMonth(currentDate.getMonth() + 1);
+                }
+            }
+
+            return { startDate: minDate, endDate: maxDate, dates };
+        }
+
+        function groupTasksForGantt(tasks) {
+            const grouped = {};
+
+            tasks.forEach(task => {
+                const groupKey = task.project || task.category || 'Other';
+                if (!grouped[groupKey]) {
+                    grouped[groupKey] = [];
+                }
+                grouped[groupKey].push(task);
+            });
+
+            // Sort tasks within each group by due date
+            for (const key in grouped) {
+                grouped[key].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+            }
+
+            return grouped;
+        }
+
+        function formatGanttDate(date, mode) {
+            const options = { month: 'short', day: 'numeric' };
+
+            if (mode === 'day') {
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
+            } else if (mode === 'week') {
+                const weekEnd = new Date(date);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                return `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+            } else {
+                return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            }
+        }
+
+        function renderGanttRow(task, groupName, dates, startDate) {
+            const taskDate = new Date(task.dueDate);
+
+            // Calculate position and width
+            let cellIndex = -1;
+            let barWidth = 120; // default width for single cell
+
+            if (ganttViewMode === 'day') {
+                cellIndex = dates.findIndex(d => d === task.dueDate);
+                barWidth = 100;
+            } else if (ganttViewMode === 'week') {
+                cellIndex = dates.findIndex(weekStart => {
+                    const weekEnd = new Date(weekStart);
+                    weekEnd.setDate(weekEnd.getDate() + 6);
+                    return taskDate >= new Date(weekStart) && taskDate <= weekEnd;
+                });
+                barWidth = 100;
+            } else {
+                cellIndex = dates.findIndex(monthStart => {
+                    const monthEnd = new Date(monthStart);
+                    monthEnd.setMonth(monthEnd.getMonth() + 1);
+                    monthEnd.setDate(monthEnd.getDate() - 1);
+                    return taskDate >= new Date(monthStart) && taskDate <= monthEnd;
+                });
+                barWidth = 100;
+            }
+
+            if (cellIndex === -1) return '';
+
+            // Build timeline cells
+            let timelineCells = '';
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            dates.forEach((date, idx) => {
+                const isToday = ganttViewMode === 'day' && date === todayStr;
+                let cellContent = '';
+
+                if (idx === cellIndex) {
+                    const statusClass = task.status === 'done' ? 'status-done' : '';
+                    cellContent = `
+                        <div class="gantt-task-bar priority-${task.priority} ${statusClass}"
+                             style="width: ${barWidth}%; left: 0;"
+                             data-task-id="${task.id}">
+                            ${task.title}
+                        </div>
+                    `;
+                }
+
+                timelineCells += `<div class="gantt-timeline-cell ${isToday ? 'today' : ''}">${cellContent}</div>`;
+            });
+
+            const categoryIcon = getCategoryIcon(task.category);
+
+            return `
+                <div class="gantt-row">
+                    <div class="gantt-row-label">
+                        <div class="gantt-row-title">${task.title}</div>
+                        <div class="gantt-row-subtitle">${categoryIcon} ${groupName}</div>
+                    </div>
+                    <div class="gantt-row-timeline">
+                        ${timelineCells}
+                    </div>
+                </div>
+            `;
+        }
+
+        function setGanttViewMode(mode) {
+            ganttViewMode = mode;
+            renderGantt();
+        }
+
+        function attachGanttListeners() {
+            const taskBars = document.querySelectorAll('.gantt-task-bar');
+            taskBars.forEach(bar => {
+                bar.addEventListener('click', (e) => {
+                    const taskId = parseInt(e.currentTarget.dataset.taskId);
+                    openEditTask(taskId);
+                });
+            });
         }
 
         function renderStats() {
