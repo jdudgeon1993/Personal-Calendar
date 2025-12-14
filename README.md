@@ -1144,8 +1144,14 @@
                 </div>
             </div>
             <div id="detailContent"></div>
-            <div style="margin-top: var(--spacing-lg);">
-                <button class="btn btn-primary" style="width: 100%;" onclick="closeDetailModal()">Got It</button>
+            <div style="margin-top: var(--spacing-lg); display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+                <button class="btn btn-secondary" style="flex: 1;" onclick="duplicateTaskFromDetail()">
+                    <span>📋</span><span>Duplicate</span>
+                </button>
+                <button class="btn" style="flex: 1; background: var(--error); color: white;" onclick="deleteTaskFromDetail()">
+                    <span>🗑️</span><span>Delete</span>
+                </button>
+                <button class="btn btn-primary" style="flex: 1;" onclick="closeDetailModal()">Close</button>
             </div>
         </div>
     </div>
@@ -1396,21 +1402,36 @@
         function renderTasks() {
             const container = document.getElementById('contentArea');
             const filteredTasks = filterTasks();
-            const pending = filteredTasks.filter(t => t.status !== 'done');
+            const notStarted = filteredTasks.filter(t => t.status === 'not-started' || !t.status);
+            const inProgress = filteredTasks.filter(t => t.status === 'in-progress');
             const completed = filteredTasks.filter(t => t.status === 'done');
 
             let html = '';
 
-            if (pending.length > 0) {
+            if (notStarted.length > 0) {
                 html += `
                     <div class="section">
                         <div class="section-header">
                             <div class="section-title">
-                                <span>📌</span><span>To Do</span>
-                                <span class="section-count">${pending.length}</span>
+                                <span>📌</span><span>Not Started</span>
+                                <span class="section-count">${notStarted.length}</span>
                             </div>
                         </div>
-                        ${pending.map(task => createTaskCard(task)).join('')}
+                        ${notStarted.map(task => createTaskCard(task)).join('')}
+                    </div>
+                `;
+            }
+
+            if (inProgress.length > 0) {
+                html += `
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">
+                                <span>🔄</span><span>In Progress</span>
+                                <span class="section-count">${inProgress.length}</span>
+                            </div>
+                        </div>
+                        ${inProgress.map(task => createTaskCard(task)).join('')}
                     </div>
                 `;
             }
@@ -1423,6 +1444,7 @@
                                 <span>✅</span><span>Completed</span>
                                 <span class="section-count">${completed.length}</span>
                             </div>
+                            ${completed.length > 0 ? `<button class="btn btn-secondary" style="font-size: 12px; padding: 4px 12px;" onclick="deleteCompletedTasks()">🗑️ Clear Completed</button>` : ''}
                         </div>
                         ${completed.map(task => createTaskCard(task)).join('')}
                     </div>
@@ -1434,6 +1456,9 @@
                     <div class="empty-state">
                         <div class="empty-state-icon">📝</div>
                         <div class="empty-state-text">No tasks found</div>
+                        <button class="btn btn-primary" onclick="openNewTaskModal()" style="margin-top: var(--spacing-md);">
+                            <span>➕</span><span>Create Your First Task</span>
+                        </button>
                     </div>
                 `;
             }
@@ -1480,21 +1505,36 @@
                 checkboxContent = '';
             }
 
+            // Status badge for non-board views
+            let statusBadge = '';
+            if (!isBoard) {
+                if (task.status === 'in-progress') {
+                    statusBadge = `<span class="badge" style="background: var(--primary); color: white;">🔄 In Progress</span>`;
+                } else if (task.status === 'done') {
+                    statusBadge = `<span class="badge" style="background: var(--success); color: white;">✓ Done</span>`;
+                }
+            }
+
             return `
                 <div class="task-card priority-${task.priority} ${isCompleted ? 'completed' : ''} ${statusClass}"
                      data-id="${task.id}"
-                     ${draggableAttr}>
+                     ${draggableAttr}
+                     title="Task ID: ${task.id} - Click to view details">
                     <div class="task-header">
                         <div class="task-checkbox ${checkboxClass}"
                              data-id="${task.id}"
                              onclick="event.stopPropagation(); toggleTaskStatus(${task.id});"
                              title="Click to cycle status: Not Started → In Progress → Done">${checkboxContent}</div>
                         <div class="task-content">
-                            <div class="task-title">${task.title}</div>
+                            <div class="task-title">
+                                ${task.milestone ? '🎯 ' : ''}${task.title}
+                                ${task.dependencies && task.dependencies.length > 0 ? ` <span style="font-size: 11px; opacity: 0.7;" title="${task.dependencies.length} dependencies">🔗</span>` : ''}
+                            </div>
                             <div class="task-meta">
                                 <span class="badge badge-category" style="background: linear-gradient(135deg, var(--${task.category}), var(--primary-light));">
                                     ${getCategoryIcon(task.category)} ${task.category}
                                 </span>
+                                ${statusBadge}
                                 ${task.startTime && task.endTime && !isBoard ? `<span class="badge badge-time">⏰ ${formatTime(task.startTime)} - ${formatTime(task.endTime)}</span>` : ''}
                                 ${task.duration && !isBoard ? `<span class="badge badge-duration">⏱️ ${task.duration}m</span>` : ''}
                                 ${isUrgentOrOverdue ? `<span class="badge badge-urgent" style="background: var(--error); color: white;">🔥 Urgent</span>` : ''}
@@ -2620,19 +2660,52 @@
         function openDetailModal(taskId) {
             const task = tasks.find(t => t.id === taskId);
             if (!task) return;
-            
+
             currentDetailTaskId = taskId;
-            document.getElementById('detailModalTitle').textContent = task.title;
+            document.getElementById('detailModalTitle').textContent = task.milestone ? '🎯 ' + task.title : task.title;
+
+            // Status color
+            let statusColor = 'var(--text-tertiary)';
+            let statusLabel = 'Not Started';
+            if (task.status === 'in-progress') {
+                statusColor = 'var(--primary)';
+                statusLabel = 'In Progress';
+            } else if (task.status === 'done') {
+                statusColor = 'var(--success)';
+                statusLabel = 'Completed';
+            }
+
+            // Get dependency task names
+            let dependencyInfo = '';
+            if (task.dependencies && task.dependencies.length > 0) {
+                const depNames = task.dependencies.map(depId => {
+                    const depTask = tasks.find(t => t.id === depId);
+                    return depTask ? `${depTask.title} (#${depId})` : `#${depId}`;
+                }).join(', ');
+                dependencyInfo = `<div class="form-group">
+                    <label class="form-label">Dependencies</label>
+                    <div style="padding: var(--spacing-sm); background: var(--bg-tertiary); border-radius: var(--radius-sm); font-size: 13px;">
+                        🔗 ${depNames}
+                    </div>
+                </div>`;
+            }
 
             let html = `
                 <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
+                    <div style="background: var(--bg-tertiary); color: var(--text-secondary); padding: 8px 12px; border-radius: var(--radius-md); font-size: 12px;">
+                        ID: ${task.id}
+                    </div>
+                    ${renderDetailBadge('Status', statusLabel, statusColor)}
                     ${renderDetailBadge('Category', task.category, 'var(--' + task.category + ')')}
                     ${renderDetailBadge('Priority', task.priority, getPriorityColor(task.priority))}
                     ${task.dueDate ? renderDetailBadge('Due Date', task.dueDate, 'var(--primary)') : ''}
                     ${task.project ? renderDetailBadge('Project', task.project, 'var(--info)') : ''}
                     ${task.startTime && task.endTime ? renderDetailBadge('Time Block', `${formatTime(task.startTime)} - ${formatTime(task.endTime)} (${task.duration}m)`, 'var(--warning)') : ''}
                     ${task.recurring ? renderDetailBadge('Recurring', task.recurringFreq, 'var(--success)') : ''}
+                    ${task.milestone ? renderDetailBadge('Milestone', 'Yes', 'var(--warning)') : ''}
                 </div>
+
+                ${dependencyInfo}
                 
                 ${task.notes ? `
                     <div class="form-group">
@@ -2681,6 +2754,22 @@
                 setTimeout(() => {
                     editTask(taskId);
                 }, 100);
+            }
+        }
+
+        function deleteTaskFromDetail() {
+            if (currentDetailTaskId) {
+                const taskId = currentDetailTaskId;
+                closeDetailModal();
+                deleteTask(taskId);
+            }
+        }
+
+        function duplicateTaskFromDetail() {
+            if (currentDetailTaskId) {
+                const taskId = currentDetailTaskId;
+                closeDetailModal();
+                duplicateTask(taskId);
             }
         }
 
@@ -2926,6 +3015,65 @@
             const h12 = h % 12 || 12;
             return `${h12}:${minutes} ${ampm}`;
         }
+
+        function deleteCompletedTasks() {
+            const completedCount = tasks.filter(t => t.status === 'done').length;
+            if (completedCount === 0) return;
+
+            if (confirm(`Delete all ${completedCount} completed tasks? This action cannot be undone!`)) {
+                tasks = tasks.filter(t => t.status !== 'done');
+                saveData();
+                render();
+            }
+        }
+
+        function deleteTask(taskId) {
+            if (confirm('Delete this task? This action cannot be undone!')) {
+                const index = tasks.findIndex(t => t.id === taskId);
+                if (index !== -1) {
+                    tasks.splice(index, 1);
+                    saveData();
+                    render();
+                }
+            }
+        }
+
+        function duplicateTask(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                const newTask = {
+                    ...task,
+                    id: Date.now(),
+                    title: task.title + ' (Copy)',
+                    status: 'not-started',
+                    created: Date.now()
+                };
+                tasks.push(newTask);
+                saveData();
+                render();
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + N: New task
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                openNewTaskModal();
+            }
+            // Ctrl/Cmd + K: Focus search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                document.getElementById('searchInput').focus();
+            }
+            // Escape: Close modals
+            if (e.key === 'Escape') {
+                closeTaskModal();
+                closeSyncModal();
+                closeDetailModal();
+                closeSettingsModal();
+            }
+        });
 
         document.addEventListener('DOMContentLoaded', init);
     </script>
