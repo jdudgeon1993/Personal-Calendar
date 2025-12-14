@@ -694,6 +694,78 @@
             text-decoration: line-through;
         }
 
+        .gantt-task-bar.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .gantt-task-bar.critical-path {
+            box-shadow: 0 0 0 2px #EF4444, 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .gantt-task-progress {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.3);
+            border-right: 2px solid rgba(255, 255, 255, 0.6);
+            pointer-events: none;
+            transition: width 0.3s ease;
+        }
+
+        .gantt-milestone {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%) rotate(45deg);
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #F59E0B, #D97706);
+            border: 2px solid white;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: var(--transition);
+        }
+
+        .gantt-milestone:hover {
+            transform: translateY(-50%) rotate(45deg) scale(1.2);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .gantt-milestone-label {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%) rotate(-45deg);
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            pointer-events: none;
+        }
+
+        .gantt-dependency-line {
+            position: absolute;
+            height: 2px;
+            background: var(--primary);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .gantt-dependency-arrow {
+            position: absolute;
+            right: -6px;
+            top: -3px;
+            width: 0;
+            height: 0;
+            border-left: 6px solid var(--primary);
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+        }
+
         .gantt-empty-state {
             text-align: center;
             padding: var(--spacing-xl);
@@ -1025,6 +1097,20 @@
                     </select>
                 </div>
 
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="taskMilestone">
+                        <span class="form-label" style="margin: 0;">🎯 Milestone</span>
+                    </label>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Mark this as a key project milestone</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Dependencies (Task IDs, comma-separated)</label>
+                    <input type="text" class="form-input" id="taskDependencies" placeholder="e.g., 12345, 67890">
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Tasks that must be completed before this one</div>
+                </div>
+
                 <button type="submit" class="btn btn-primary" style="width: 100%;">
                     <span>💾</span><span>Save Task</span>
                 </button>
@@ -1293,10 +1379,8 @@
             
             let isUrgentOrOverdue = false;
             if (task.dueDate && !isCompleted) {
-                const dueDate = new Date(task.dueDate);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                if (dueDate < today) {
+                // Compare date strings to avoid timezone issues
+                if (task.dueDate < todayStr) {
                     isUrgentOrOverdue = true;
                 }
             }
@@ -1908,18 +1992,16 @@
 
             // Calculate position and width
             let cellIndex = -1;
-            let barWidth = 120; // default width for single cell
+            let barWidth = 100; // default width for single cell
 
             if (ganttViewMode === 'day') {
                 cellIndex = dates.findIndex(d => d === task.dueDate);
-                barWidth = 100;
             } else if (ganttViewMode === 'week') {
                 cellIndex = dates.findIndex(weekStart => {
                     const weekEnd = new Date(weekStart);
                     weekEnd.setDate(weekEnd.getDate() + 6);
                     return taskDate >= new Date(weekStart) && taskDate <= weekEnd;
                 });
-                barWidth = 100;
             } else {
                 cellIndex = dates.findIndex(monthStart => {
                     const monthEnd = new Date(monthStart);
@@ -1927,10 +2009,23 @@
                     monthEnd.setDate(monthEnd.getDate() - 1);
                     return taskDate >= new Date(monthStart) && taskDate <= monthEnd;
                 });
-                barWidth = 100;
             }
 
             if (cellIndex === -1) return '';
+
+            // Calculate progress from subtasks
+            let progress = 0;
+            if (task.subtasks && task.subtasks.length > 0) {
+                const completed = task.subtasks.filter(s => s.completed).length;
+                progress = Math.round((completed / task.subtasks.length) * 100);
+            } else if (task.status === 'done') {
+                progress = 100;
+            } else if (task.status === 'in-progress') {
+                progress = 50;
+            }
+
+            // Check if task is on critical path
+            const isCriticalPath = isTaskOnCriticalPath(task);
 
             // Build timeline cells
             let timelineCells = '';
@@ -1941,14 +2036,30 @@
                 let cellContent = '';
 
                 if (idx === cellIndex) {
-                    const statusClass = task.status === 'done' ? 'status-done' : '';
-                    cellContent = `
-                        <div class="gantt-task-bar priority-${task.priority} ${statusClass}"
-                             style="width: ${barWidth}%; left: 0;"
-                             data-task-id="${task.id}">
-                            ${task.title}
-                        </div>
-                    `;
+                    if (task.milestone) {
+                        // Render milestone marker
+                        cellContent = `
+                            <div class="gantt-milestone"
+                                 style="left: 50%; margin-left: -12px;"
+                                 data-task-id="${task.id}">
+                                <div class="gantt-milestone-label">${task.title}</div>
+                            </div>
+                        `;
+                    } else {
+                        // Render task bar
+                        const statusClass = task.status === 'done' ? 'status-done' : '';
+                        const criticalClass = isCriticalPath ? 'critical-path' : '';
+                        cellContent = `
+                            <div class="gantt-task-bar priority-${task.priority} ${statusClass} ${criticalClass}"
+                                 style="width: ${barWidth}%; left: 0;"
+                                 data-task-id="${task.id}"
+                                 data-cell-index="${cellIndex}"
+                                 draggable="true">
+                                ${progress > 0 ? `<div class="gantt-task-progress" style="width: ${progress}%;"></div>` : ''}
+                                ${task.title}
+                            </div>
+                        `;
+                    }
                 }
 
                 timelineCells += `<div class="gantt-timeline-cell ${isToday ? 'today' : ''}">${cellContent}</div>`;
@@ -1957,10 +2068,10 @@
             const categoryIcon = getCategoryIcon(task.category);
 
             return `
-                <div class="gantt-row">
+                <div class="gantt-row" data-task-id="${task.id}">
                     <div class="gantt-row-label">
-                        <div class="gantt-row-title">${task.title}</div>
-                        <div class="gantt-row-subtitle">${categoryIcon} ${groupName}</div>
+                        <div class="gantt-row-title">${task.title}${task.milestone ? ' 🎯' : ''}</div>
+                        <div class="gantt-row-subtitle">${categoryIcon} ${groupName}${progress > 0 && !task.milestone ? ` • ${progress}%` : ''}</div>
                     </div>
                     <div class="gantt-row-timeline">
                         ${timelineCells}
@@ -1969,17 +2080,180 @@
             `;
         }
 
+        function isTaskOnCriticalPath(task) {
+            // A task is on the critical path if:
+            // 1. It has dependencies and any of them are not complete
+            // 2. Other tasks depend on it
+            if (!task.dependencies || task.dependencies.length === 0) {
+                return false;
+            }
+
+            const hasIncompleteDeps = task.dependencies.some(depId => {
+                const depTask = tasks.find(t => t.id === depId);
+                return depTask && depTask.status !== 'done';
+            });
+
+            const othersDependOnThis = tasks.some(t =>
+                t.dependencies && t.dependencies.includes(task.id)
+            );
+
+            return hasIncompleteDeps || othersDependOnThis;
+        }
+
         function setGanttViewMode(mode) {
             ganttViewMode = mode;
             renderGantt();
         }
 
+        let draggedTaskElement = null;
+        let draggedTask = null;
+
         function attachGanttListeners() {
-            const taskBars = document.querySelectorAll('.gantt-task-bar');
+            // Click events for task bars and milestones
+            const taskBars = document.querySelectorAll('.gantt-task-bar, .gantt-milestone');
             taskBars.forEach(bar => {
                 bar.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     const taskId = parseInt(e.currentTarget.dataset.taskId);
-                    openEditTask(taskId);
+                    editTask(taskId);
+                });
+            });
+
+            // Drag and drop for task bars
+            const draggableBars = document.querySelectorAll('.gantt-task-bar[draggable="true"]');
+            draggableBars.forEach(bar => {
+                bar.addEventListener('dragstart', handleDragStart);
+                bar.addEventListener('dragend', handleDragEnd);
+            });
+
+            // Drop zones for timeline cells
+            const cells = document.querySelectorAll('.gantt-timeline-cell');
+            cells.forEach(cell => {
+                cell.addEventListener('dragover', handleDragOver);
+                cell.addEventListener('drop', handleDrop);
+            });
+
+            // Render dependency lines
+            renderDependencyLines();
+        }
+
+        function handleDragStart(e) {
+            draggedTaskElement = e.target;
+            const taskId = parseInt(e.target.dataset.taskId);
+            draggedTask = tasks.find(t => t.id === taskId);
+
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', e.target.innerHTML);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            draggedTaskElement = null;
+            draggedTask = null;
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            e.preventDefault();
+
+            if (!draggedTask) return false;
+
+            // Find which row and cell this is
+            const cell = e.currentTarget;
+            const row = cell.closest('.gantt-row');
+            const rowTaskId = parseInt(row.dataset.taskId);
+
+            // Only allow dropping in the same row
+            if (rowTaskId !== draggedTask.id) return false;
+
+            // Find the date for this cell
+            const allCells = Array.from(row.querySelectorAll('.gantt-timeline-cell'));
+            const cellIndex = allCells.indexOf(cell);
+
+            // Calculate the date range for Gantt view
+            const filteredTasks = filterTasks().filter(t => t.dueDate);
+            const { dates } = calculateGanttDateRange(filteredTasks);
+
+            if (cellIndex >= 0 && cellIndex < dates.length) {
+                const newDate = dates[cellIndex];
+
+                // Update task due date
+                const taskIndex = tasks.findIndex(t => t.id === draggedTask.id);
+                if (taskIndex !== -1) {
+                    tasks[taskIndex].dueDate = newDate;
+                    saveData();
+                    renderGantt();
+                }
+            }
+
+            return false;
+        }
+
+        function renderDependencyLines() {
+            // Remove existing dependency lines
+            document.querySelectorAll('.gantt-dependency-line').forEach(el => el.remove());
+
+            const filteredTasks = filterTasks().filter(t => t.dueDate);
+
+            filteredTasks.forEach(task => {
+                if (!task.dependencies || task.dependencies.length === 0) return;
+
+                task.dependencies.forEach(depId => {
+                    const depTask = tasks.find(t => t.id === depId);
+                    if (!depTask || !depTask.dueDate) return;
+
+                    // Find the DOM elements for both tasks
+                    const taskRow = document.querySelector(`.gantt-row[data-task-id="${task.id}"]`);
+                    const depRow = document.querySelector(`.gantt-row[data-task-id="${depId}"]`);
+
+                    if (!taskRow || !depRow) return;
+
+                    const taskBar = taskRow.querySelector('.gantt-task-bar, .gantt-milestone');
+                    const depBar = depRow.querySelector('.gantt-task-bar, .gantt-milestone');
+
+                    if (!taskBar || !depBar) return;
+
+                    // Calculate positions
+                    const taskRect = taskBar.getBoundingClientRect();
+                    const depRect = depBar.getBoundingClientRect();
+                    const container = document.querySelector('.gantt-timeline');
+                    const containerRect = container.getBoundingClientRect();
+
+                    // Create line element
+                    const line = document.createElement('div');
+                    line.className = 'gantt-dependency-line';
+
+                    const x1 = depRect.right - containerRect.left;
+                    const y1 = depRect.top - containerRect.top + depRect.height / 2;
+                    const x2 = taskRect.left - containerRect.left;
+                    const y2 = taskRect.top - containerRect.top + taskRect.height / 2;
+
+                    const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+                    const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+                    line.style.width = `${length}px`;
+                    line.style.left = `${x1}px`;
+                    line.style.top = `${y1}px`;
+                    line.style.transform = `rotate(${angle}deg)`;
+                    line.style.transformOrigin = '0 0';
+
+                    // Add arrow
+                    const arrow = document.createElement('div');
+                    arrow.className = 'gantt-dependency-arrow';
+                    line.appendChild(arrow);
+
+                    container.appendChild(line);
                 });
             });
         }
@@ -2102,7 +2376,9 @@
             document.getElementById('taskProject').value = task.project || '';
             document.getElementById('taskNotes').value = task.notes || '';
             document.getElementById('taskRecurring').checked = task.recurring || false;
-            
+            document.getElementById('taskMilestone').checked = task.milestone || false;
+            document.getElementById('taskDependencies').value = task.dependencies ? task.dependencies.join(', ') : '';
+
             if (task.recurring) {
                 document.getElementById('recurringFreq').classList.remove('hidden');
                 document.getElementById('recurringFreq').value = task.recurringFreq || 'daily';
@@ -2143,6 +2419,11 @@
             const tagItems = document.querySelectorAll('.tag-item');
             const tags = Array.from(tagItems).map(el => el.textContent.replace('×', '').trim());
 
+            const dependenciesInput = document.getElementById('taskDependencies').value.trim();
+            const dependencies = dependenciesInput
+                ? dependenciesInput.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
+                : [];
+
             const taskData = {
                 id: editingTaskId || Date.now(),
                 title: document.getElementById('taskTitle').value,
@@ -2158,8 +2439,10 @@
                 subtasks: subtasks,
                 tags: tags,
                 recurring: document.getElementById('taskRecurring').checked,
-                recurringFreq: document.getElementById('taskRecurring').checked ? 
+                recurringFreq: document.getElementById('taskRecurring').checked ?
                     document.getElementById('recurringFreq').value : null,
+                milestone: document.getElementById('taskMilestone').checked,
+                dependencies: dependencies,
                 status: editingTaskId ? tasks.find(t => t.id === editingTaskId).status : 'not-started',
                 created: editingTaskId ? tasks.find(t => t.id === editingTaskId).created : Date.now()
             };
