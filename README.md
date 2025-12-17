@@ -496,6 +496,149 @@
             color: white;
             border-color: var(--accent-primary);
         }
+
+        /* Calendar Timeline Styles */
+        .calendar-timeline {
+            position: relative;
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 20px;
+            min-height: 600px;
+        }
+
+        .timeline-hours {
+            position: relative;
+            height: 1440px; /* 24 hours * 60px per hour */
+        }
+
+        .hour-row {
+            position: relative;
+            height: 60px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .hour-label {
+            width: 80px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            padding-top: 4px;
+        }
+
+        .hour-content {
+            flex: 1;
+            position: relative;
+            height: 100%;
+        }
+
+        .calendar-event {
+            position: absolute;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 1;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .calendar-event:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .calendar-event.active {
+            animation: glow-pulse 2s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.8), 0 0 40px rgba(99, 102, 241, 0.4);
+            z-index: 2;
+        }
+
+        @keyframes glow-pulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(99, 102, 241, 0.8), 0 0 40px rgba(99, 102, 241, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(99, 102, 241, 1), 0 0 60px rgba(99, 102, 241, 0.6);
+            }
+        }
+
+        .current-time-indicator {
+            position: absolute;
+            left: 80px;
+            right: 0;
+            height: 2px;
+            background: #ef4444;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .current-time-indicator::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: -5px;
+            width: 12px;
+            height: 12px;
+            background: #ef4444;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+        }
+
+        .current-time-indicator::after {
+            content: attr(data-time);
+            position: absolute;
+            left: -70px;
+            top: -8px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #ef4444;
+            background: var(--bg-card);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .fab-menu {
+            position: fixed;
+            bottom: 160px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 49;
+        }
+
+        .fab-menu.hidden {
+            display: none;
+        }
+
+        .fab-option {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 2px solid var(--accent-primary);
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .fab-option:hover {
+            transform: scale(1.1);
+            background: var(--accent-primary);
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -537,8 +680,13 @@
         </div>
 
         <div class="card mb-6">
-            <h3 class="text-xl font-bold mb-4">📌 Today's Focus</h3>
+            <h3 class="text-xl font-bold mb-4">✅ Today's Tasks</h3>
             <div id="today-tasks"></div>
+        </div>
+
+        <div class="card mb-6">
+            <h3 class="text-xl font-bold mb-4">📅 Today's Events</h3>
+            <div id="today-events"></div>
         </div>
 
         <div class="card">
@@ -600,19 +748,22 @@
         </div>
     </div>
 
-    <!-- Pulse View (Timeline) -->
+    <!-- Pulse View (Calendar) -->
     <div id="pulse-view" class="view-container">
-        <h2 class="text-3xl font-bold mb-6">Pulse</h2>
+        <h2 class="text-3xl font-bold mb-6">Calendar</h2>
 
         <div class="card mb-6">
             <div class="flex items-center gap-4 mb-4">
                 <button class="btn btn-secondary" onclick="changePulseDate(-1)">← Previous</button>
                 <input type="date" class="input" id="pulse-date" onchange="renderPulse()">
                 <button class="btn btn-secondary" onclick="changePulseDate(1)">Next →</button>
+                <button class="btn btn-primary" onclick="scrollToCurrentTime()">📍 Now</button>
             </div>
         </div>
 
-        <div id="pulse-timeline"></div>
+        <div class="calendar-timeline">
+            <div id="pulse-timeline" class="timeline-hours"></div>
+        </div>
     </div>
 
     <!-- Notes View -->
@@ -672,8 +823,12 @@
         </div>
     </div>
 
-    <!-- Floating Action Button -->
-    <button class="fab" onclick="openTaskModal()" title="Add New Task">+</button>
+    <!-- Floating Action Button Menu -->
+    <div class="fab-menu hidden" id="fab-menu">
+        <button class="fab-option" onclick="openTaskModal(); toggleFabMenu()" title="Add Task">✅</button>
+        <button class="fab-option" onclick="openEventModal(); toggleFabMenu()" title="Add Event">📅</button>
+    </div>
+    <button class="fab" onclick="toggleFabMenu()" title="Add Task or Event">+</button>
 
     <!-- Bottom Navigation -->
     <div class="bottom-nav">
@@ -818,6 +973,83 @@
         </div>
     </div>
 
+    <!-- Event Modal -->
+    <div id="event-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h2 class="text-2xl font-bold" id="event-modal-title">Add New Event</h2>
+                <button class="icon-btn" onclick="closeEventModal()">✕</button>
+            </div>
+
+            <form id="event-form" onsubmit="saveEvent(event)">
+                <div class="form-group">
+                    <label class="form-label">Event Title *</label>
+                    <input type="text" class="input" id="event-title" placeholder="Enter event title" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date *</label>
+                        <input type="date" class="input" id="event-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Category</label>
+                        <select class="select" id="event-category">
+                            <option value="work">Work</option>
+                            <option value="personal">Personal</option>
+                            <option value="school">School</option>
+                            <option value="health">Health</option>
+                            <option value="finance">Finance</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Start Time *</label>
+                        <input type="time" class="input" id="event-start-time" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Time *</label>
+                        <input type="time" class="input" id="event-end-time" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Location</label>
+                    <input type="text" class="input" id="event-location" placeholder="Event location (optional)">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="textarea" id="event-description" placeholder="Add event description..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="event-recurring">
+                        <span>Recurring Event</span>
+                    </label>
+                </div>
+
+                <div class="form-group" id="event-recurring-options" style="display: none;">
+                    <label class="form-label">Recurrence Pattern</label>
+                    <select class="select" id="event-recurrence">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">Save Event</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeEventModal()">Cancel</button>
+                    <button type="button" class="btn btn-secondary" onclick="deleteEvent()" id="delete-event-btn" style="display: none; background: var(--accent-danger); color: white;">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
@@ -877,16 +1109,20 @@
         // Global Variables
         const API_BASE_URL = 'https://rtd-n-line-api.onrender.com';
         let tasks = [];
+        let events = [];
         let currentEditingTask = null;
+        let currentEditingEvent = null;
         let timerInterval = null;
         let timerSeconds = 25 * 60;
         let timerRunning = false;
         let sessionsCompleted = 0;
         let currentFilter = 'all';
+        let currentTimeInterval = null;
 
         // Initialize App
         document.addEventListener('DOMContentLoaded', function() {
             loadTasks();
+            loadEvents();
             loadNotes();
             loadTheme();
             loadSettings();
@@ -894,6 +1130,7 @@
             renderBoard();
             renderPulse();
             initializeSortable();
+            startCurrentTimeUpdater();
 
             // Set today's date in pulse view
             document.getElementById('pulse-date').valueAsDate = new Date();
@@ -901,6 +1138,11 @@
             // Load recurring task checkbox handler
             document.getElementById('task-recurring').addEventListener('change', function(e) {
                 document.getElementById('recurring-options').style.display = e.target.checked ? 'block' : 'none';
+            });
+
+            // Load recurring event checkbox handler
+            document.getElementById('event-recurring').addEventListener('change', function(e) {
+                document.getElementById('event-recurring-options').style.display = e.target.checked ? 'block' : 'none';
             });
         });
 
@@ -916,6 +1158,19 @@
             localStorage.setItem('taskify_elite', JSON.stringify(tasks));
             renderHub();
             renderBoard();
+            renderPulse();
+        }
+
+        function loadEvents() {
+            const stored = localStorage.getItem('taskify_events');
+            if (stored) {
+                events = JSON.parse(stored);
+            }
+        }
+
+        function saveEvents() {
+            localStorage.setItem('taskify_events', JSON.stringify(events));
+            renderHub();
             renderPulse();
         }
 
@@ -1042,6 +1297,29 @@
                             ${task.startTime ? `<div style="font-size: 12px; color: var(--text-secondary);">${task.startTime}</div>` : ''}
                         </div>
                         ${task.description ? `<div style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">${task.description}</div>` : ''}
+                    </div>
+                `).join('');
+            }
+
+            // Render today's events
+            const todayEvents = events.filter(e => e.date === today);
+            const eventsContainer = document.getElementById('today-events');
+            if (todayEvents.length === 0) {
+                eventsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📅</div><div>No events scheduled today</div></div>';
+            } else {
+                eventsContainer.innerHTML = todayEvents.sort((a, b) => a.startTime.localeCompare(b.startTime)).map(event => `
+                    <div class="task-card" onclick="editEvent('${event.id}')">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; margin-bottom: 4px;">${event.title}</div>
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <span class="tag" style="background: rgba(99, 102, 241, 0.2);">${event.category || 'event'}</span>
+                                    ${event.location ? `<span class="tag" style="background: rgba(139, 92, 246, 0.2);">📍 ${event.location}</span>` : ''}
+                                </div>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">${event.startTime} - ${event.endTime}</div>
+                        </div>
+                        ${event.description ? `<div style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">${event.description}</div>` : ''}
                     </div>
                 `).join('');
             }
@@ -1190,45 +1468,152 @@
             });
         }
 
-        // Pulse View (Timeline)
+        // Pulse View (Calendar Timeline)
         function renderPulse() {
             const selectedDate = document.getElementById('pulse-date').value;
-            const dateTasks = tasks.filter(t => t.dueDate === selectedDate);
-
-            // Sort by start time
-            dateTasks.sort((a, b) => {
-                if (!a.startTime) return 1;
-                if (!b.startTime) return -1;
-                return a.startTime.localeCompare(b.startTime);
-            });
+            const dateEvents = events.filter(e => e.date === selectedDate);
 
             const container = document.getElementById('pulse-timeline');
 
-            if (dateTasks.length === 0) {
-                container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📅</div><div>No tasks scheduled for this day</div></div>';
-                return;
+            // Create 24-hour timeline
+            let hoursHTML = '';
+            for (let hour = 0; hour < 24; hour++) {
+                const hourStr = String(hour).padStart(2, '0');
+                const hourLabel = hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`;
+
+                hoursHTML += `
+                    <div class="hour-row" data-hour="${hour}">
+                        <div class="hour-label">${hourLabel}</div>
+                        <div class="hour-content" id="hour-${hour}"></div>
+                    </div>
+                `;
             }
 
-            container.innerHTML = dateTasks.map(task => `
-                <div class="time-block" onclick="editTask('${task.id}')">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                        <div>
-                            <div style="font-weight: 700; font-size: 18px; margin-bottom: 4px;">${task.title}</div>
-                            <div style="font-size: 14px; color: var(--text-secondary);">
-                                ${task.startTime ? `⏰ ${task.startTime}` : ''}
-                                ${task.startTime && task.endTime ? ` - ${task.endTime}` : ''}
-                            </div>
-                        </div>
-                        <span class="tag status-${task.status}">${task.status.replace('-', ' ')}</span>
-                    </div>
-                    ${task.description ? `<div style="margin-top: 8px; color: var(--text-secondary);">${task.description}</div>` : ''}
-                    <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
-                        <span class="tag priority-${task.priority}">${task.priority}</span>
-                        ${task.category ? `<span class="tag" style="background: rgba(99, 102, 241, 0.2);">${task.category}</span>` : ''}
-                        ${task.project ? `<span class="tag" style="background: rgba(139, 92, 246, 0.2);">📁 ${task.project}</span>` : ''}
-                    </div>
-                </div>
-            `).join('');
+            container.innerHTML = hoursHTML;
+
+            // Position events on timeline
+            dateEvents.forEach(event => {
+                const [startHour, startMin] = event.startTime.split(':').map(Number);
+                const [endHour, endMin] = event.endTime.split(':').map(Number);
+
+                // Calculate position and height
+                const startMinutes = startHour * 60 + startMin;
+                const endMinutes = endHour * 60 + endMin;
+                const durationMinutes = endMinutes - startMinutes;
+
+                // Position from top (in pixels, 1 minute = 1px)
+                const topPosition = startMin;
+                const height = durationMinutes;
+
+                // Find the hour container
+                const hourContainer = document.getElementById(`hour-${startHour}`);
+                if (hourContainer) {
+                    const eventDiv = document.createElement('div');
+                    eventDiv.className = 'calendar-event';
+                    eventDiv.style.top = `${topPosition}px`;
+                    eventDiv.style.height = `${height}px`;
+                    eventDiv.onclick = () => editEvent(event.id);
+
+                    // Check if event is currently active
+                    if (selectedDate === new Date().toISOString().split('T')[0]) {
+                        const now = new Date();
+                        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                        if (nowMinutes >= startMinutes && nowMinutes <= endMinutes) {
+                            eventDiv.classList.add('active');
+                        }
+                    }
+
+                    eventDiv.innerHTML = `
+                        <div style="font-weight: 700; margin-bottom: 2px;">${event.title}</div>
+                        <div style="font-size: 11px; opacity: 0.9;">${event.startTime} - ${event.endTime}</div>
+                        ${event.location ? `<div style="font-size: 11px; margin-top: 2px;">📍 ${event.location}</div>` : ''}
+                    `;
+
+                    hourContainer.appendChild(eventDiv);
+                }
+            });
+
+            // Add or update current time indicator
+            updateCurrentTimeIndicator();
+        }
+
+        function updateCurrentTimeIndicator() {
+            const selectedDate = document.getElementById('pulse-date').value;
+            const today = new Date().toISOString().split('T')[0];
+
+            // Remove existing indicator
+            const existingIndicator = document.querySelector('.current-time-indicator');
+            if (existingIndicator) {
+                existingIndicator.remove();
+            }
+
+            // Only show indicator if viewing today
+            if (selectedDate !== today) return;
+
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const totalMinutes = hours * 60 + minutes;
+
+            // Calculate position (60px per hour)
+            const topPosition = (totalMinutes / 60) * 60;
+
+            const indicator = document.createElement('div');
+            indicator.className = 'current-time-indicator';
+            indicator.style.top = `${topPosition}px`;
+            indicator.setAttribute('data-time', `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+
+            const timeline = document.getElementById('pulse-timeline');
+            if (timeline) {
+                timeline.appendChild(indicator);
+            }
+
+            // Re-check active events
+            const dateEvents = events.filter(e => e.date === selectedDate);
+            dateEvents.forEach(event => {
+                const [startHour, startMin] = event.startTime.split(':').map(Number);
+                const [endHour, endMin] = event.endTime.split(':').map(Number);
+                const startMinutes = startHour * 60 + startMin;
+                const endMinutes = endHour * 60 + endMin;
+
+                const eventElements = document.querySelectorAll('.calendar-event');
+                eventElements.forEach(el => {
+                    if (totalMinutes >= startMinutes && totalMinutes <= endMinutes) {
+                        if (!el.classList.contains('active')) {
+                            el.classList.add('active');
+                        }
+                    } else {
+                        el.classList.remove('active');
+                    }
+                });
+            });
+        }
+
+        function startCurrentTimeUpdater() {
+            // Update current time indicator every minute
+            currentTimeInterval = setInterval(() => {
+                const selectedDate = document.getElementById('pulse-date').value;
+                const today = new Date().toISOString().split('T')[0];
+                if (selectedDate === today && document.getElementById('pulse-view').classList.contains('active')) {
+                    updateCurrentTimeIndicator();
+                }
+            }, 60000); // Update every minute
+        }
+
+        function scrollToCurrentTime() {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const totalMinutes = hours * 60 + minutes;
+            const topPosition = (totalMinutes / 60) * 60;
+
+            const pulseView = document.getElementById('pulse-view');
+            if (pulseView) {
+                pulseView.scrollTo({
+                    top: topPosition - 100,
+                    behavior: 'smooth'
+                });
+            }
         }
 
         function changePulseDate(days) {
@@ -1417,6 +1802,109 @@
             openTaskModal(taskId);
         }
 
+        // Event Modal Functions
+        function openEventModal(eventId = null) {
+            currentEditingEvent = eventId;
+            const modal = document.getElementById('event-modal');
+            const form = document.getElementById('event-form');
+            const title = document.getElementById('event-modal-title');
+            const deleteBtn = document.getElementById('delete-event-btn');
+
+            form.reset();
+            document.getElementById('event-recurring-options').style.display = 'none';
+
+            if (eventId) {
+                // Edit mode
+                const event = events.find(e => e.id === eventId);
+                if (event) {
+                    title.textContent = 'Edit Event';
+                    deleteBtn.style.display = 'block';
+
+                    document.getElementById('event-title').value = event.title || '';
+                    document.getElementById('event-date').value = event.date || '';
+                    document.getElementById('event-category').value = event.category || 'work';
+                    document.getElementById('event-start-time').value = event.startTime || '';
+                    document.getElementById('event-end-time').value = event.endTime || '';
+                    document.getElementById('event-location').value = event.location || '';
+                    document.getElementById('event-description').value = event.description || '';
+                    document.getElementById('event-recurring').checked = event.recurring || false;
+                    document.getElementById('event-recurrence').value = event.recurrence || 'daily';
+
+                    if (event.recurring) {
+                        document.getElementById('event-recurring-options').style.display = 'block';
+                    }
+                }
+            } else {
+                // Add mode
+                title.textContent = 'Add New Event';
+                deleteBtn.style.display = 'none';
+                // Set default date to today
+                document.getElementById('event-date').valueAsDate = new Date();
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeEventModal() {
+            document.getElementById('event-modal').style.display = 'none';
+            currentEditingEvent = null;
+        }
+
+        function saveEvent(e) {
+            e.preventDefault();
+
+            const eventData = {
+                id: currentEditingEvent || generateId(),
+                title: document.getElementById('event-title').value,
+                date: document.getElementById('event-date').value,
+                category: document.getElementById('event-category').value,
+                startTime: document.getElementById('event-start-time').value,
+                endTime: document.getElementById('event-end-time').value,
+                location: document.getElementById('event-location').value,
+                description: document.getElementById('event-description').value,
+                recurring: document.getElementById('event-recurring').checked,
+                recurrence: document.getElementById('event-recurrence').value,
+                createdAt: currentEditingEvent ? events.find(e => e.id === currentEditingEvent).createdAt : new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+
+            if (currentEditingEvent) {
+                // Update existing event
+                const index = events.findIndex(e => e.id === currentEditingEvent);
+                if (index !== -1) {
+                    events[index] = eventData;
+                }
+            } else {
+                // Add new event
+                events.push(eventData);
+            }
+
+            saveEvents();
+            closeEventModal();
+            showNotification(currentEditingEvent ? 'Event updated!' : 'Event created!', 'success');
+        }
+
+        function deleteEvent() {
+            if (!currentEditingEvent) return;
+
+            if (confirm('Are you sure you want to delete this event?')) {
+                events = events.filter(e => e.id !== currentEditingEvent);
+                saveEvents();
+                closeEventModal();
+                showNotification('Event deleted!', 'success');
+            }
+        }
+
+        function editEvent(eventId) {
+            openEventModal(eventId);
+        }
+
+        // FAB Menu Toggle
+        function toggleFabMenu() {
+            const menu = document.getElementById('fab-menu');
+            menu.classList.toggle('hidden');
+        }
+
         function addSubtask(title = '', completed = false) {
             const container = document.getElementById('subtasks-container');
             const subtaskDiv = document.createElement('div');
@@ -1504,6 +1992,7 @@
         function exportData() {
             const data = {
                 tasks: tasks,
+                events: events,
                 notes: localStorage.getItem('taskify_notes'),
                 settings: {
                     theme: localStorage.getItem('taskify_theme'),
@@ -1545,6 +2034,10 @@
                                 tasks = data.tasks;
                                 saveTasks();
                             }
+                            if (data.events) {
+                                events = data.events;
+                                saveEvents();
+                            }
                             if (data.notes) {
                                 localStorage.setItem('taskify_notes', data.notes);
                                 loadNotes();
@@ -1576,7 +2069,9 @@
                 if (confirm('This action cannot be undone. Click OK to confirm deletion.')) {
                     localStorage.clear();
                     tasks = [];
+                    events = [];
                     saveTasks();
+                    saveEvents();
                     showNotification('All data cleared!', 'success');
                     location.reload();
                 }
@@ -1632,6 +2127,7 @@
                 if (e.target === modal) {
                     modal.style.display = 'none';
                     currentEditingTask = null;
+                    currentEditingEvent = null;
                 }
             });
         });
@@ -1644,12 +2140,21 @@
                     modal.style.display = 'none';
                 });
                 currentEditingTask = null;
+                currentEditingEvent = null;
+                // Close FAB menu
+                document.getElementById('fab-menu').classList.add('hidden');
             }
 
             // Cmd/Ctrl + K to open task modal
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
                 e.preventDefault();
                 openTaskModal();
+            }
+
+            // Cmd/Ctrl + E to open event modal
+            if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+                e.preventDefault();
+                openEventModal();
             }
         });
     </script>
