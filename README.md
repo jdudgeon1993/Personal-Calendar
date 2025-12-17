@@ -1986,7 +1986,7 @@
                 };
 
                 // Upload to server
-                const response = await fetch(`${API_BASE_URL}/tokens/${tokenId}`, {
+                const response = await fetch(`${API_BASE_URL}/sync/${tokenId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2081,7 +2081,7 @@
                 const tokenId = tokenInput.substring(5);
 
                 // Fetch data from server
-                const response = await fetch(`${API_BASE_URL}/tokens/${tokenId}`, {
+                const response = await fetch(`${API_BASE_URL}/sync/${tokenId}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
