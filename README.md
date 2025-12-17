@@ -454,6 +454,19 @@
             .modal-content {
                 padding: 24px;
             }
+            .view-container {
+                padding: 12px 12px 100px 12px;
+            }
+            .calendar-event {
+                font-size: 11px;
+                padding: 6px 10px;
+            }
+            .header-bar {
+                padding: 16px;
+            }
+            .stat-card {
+                padding: 20px;
+            }
         }
 
         .search-bar {
@@ -520,8 +533,8 @@
         }
 
         .hour-label {
-            width: 80px;
-            font-size: 12px;
+            width: 70px;
+            font-size: 11px;
             color: var(--text-secondary);
             font-weight: 600;
             padding-top: 4px;
@@ -571,7 +584,7 @@
 
         .current-time-indicator {
             position: absolute;
-            left: 80px;
+            left: 70px;
             right: 0;
             height: 2px;
             background: #ef4444;
@@ -594,9 +607,9 @@
         .current-time-indicator::after {
             content: attr(data-time);
             position: absolute;
-            left: -70px;
+            left: -65px;
             top: -8px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             color: #ef4444;
             background: var(--bg-card);
@@ -750,15 +763,15 @@
 
     <!-- Pulse View (Calendar) -->
     <div id="pulse-view" class="view-container">
-        <h2 class="text-3xl font-bold mb-6">Calendar</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 class="text-2xl font-bold">Calendar</h2>
+            <button class="btn btn-primary" style="padding: 8px 16px;" onclick="scrollToCurrentTime()">📍 Now</button>
+        </div>
 
-        <div class="card mb-6">
-            <div class="flex items-center gap-4 mb-4">
-                <button class="btn btn-secondary" onclick="changePulseDate(-1)">← Previous</button>
-                <input type="date" class="input" id="pulse-date" onchange="renderPulse()">
-                <button class="btn btn-secondary" onclick="changePulseDate(1)">Next →</button>
-                <button class="btn btn-primary" onclick="scrollToCurrentTime()">📍 Now</button>
-            </div>
+        <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+            <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 14px;" onclick="changePulseDate(-1)">←</button>
+            <input type="date" class="input" id="pulse-date" onchange="renderPulse()" style="flex: 1; min-width: 150px; padding: 8px 12px;">
+            <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 14px;" onclick="changePulseDate(1)">→</button>
         </div>
 
         <div class="calendar-timeline">
@@ -1067,19 +1080,31 @@
             </div>
 
             <div class="card mb-4">
-                <h3 class="text-lg font-bold mb-4">☁️ Server Sync</h3>
-                <div class="form-group">
-                    <label class="form-label">Server URL</label>
-                    <input type="text" class="input" id="server-url" value="https://rtd-n-line-api.onrender.com" placeholder="Enter server URL">
+                <h3 class="text-lg font-bold mb-4">☁️ Calendar Sync</h3>
+
+                <div style="margin-bottom: 16px;">
+                    <button class="btn btn-primary" style="width: 100%; margin-bottom: 8px;" onclick="generateSyncToken()">
+                        🔑 Generate Sync Token
+                    </button>
+                    <div id="sync-token-display" style="display: none; padding: 12px; background: var(--bg-secondary); border-radius: 8px; margin-top: 8px;">
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Your Sync Token:</div>
+                        <div id="sync-token-value" style="font-family: monospace; font-size: 14px; word-break: break-all; margin-bottom: 8px;"></div>
+                        <button class="btn btn-secondary" style="width: 100%;" onclick="copySyncToken()">
+                            📋 Copy Token
+                        </button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">User ID</label>
-                    <input type="text" class="input" id="user-id" placeholder="Enter your user ID">
+
+                <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">Enter Sync Token</label>
+                        <textarea class="textarea" id="sync-token-input" placeholder="Paste sync token here to sync calendars..." style="min-height: 80px; font-family: monospace; font-size: 12px;"></textarea>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%;" onclick="syncWithToken()">
+                        🔄 Sync Calendars
+                    </button>
+                    <div id="sync-status" class="mt-4 text-sm text-secondary"></div>
                 </div>
-                <button class="btn btn-primary" style="width: 100%;" onclick="syncWithServer()">
-                    🔄 Sync Now
-                </button>
-                <div id="sync-status" class="mt-4 text-sm text-secondary"></div>
             </div>
 
             <div class="card mb-4">
@@ -1202,11 +1227,6 @@
         }
 
         function loadSettings() {
-            const serverUrl = localStorage.getItem('taskify_server_url');
-            const userId = localStorage.getItem('taskify_user_id');
-            if (serverUrl) document.getElementById('server-url').value = serverUrl;
-            if (userId) document.getElementById('user-id').value = userId;
-
             const focusDuration = localStorage.getItem('taskify_focus_duration') || 25;
             document.getElementById('focus-duration').value = focusDuration;
             timerSeconds = focusDuration * 60;
@@ -1939,20 +1959,68 @@
 
         function closeSettingsModal() {
             document.getElementById('settings-modal').style.display = 'none';
-
-            // Save settings
-            localStorage.setItem('taskify_server_url', document.getElementById('server-url').value);
-            localStorage.setItem('taskify_user_id', document.getElementById('user-id').value);
         }
 
-        // Server Sync
-        async function syncWithServer() {
-            const serverUrl = document.getElementById('server-url').value;
-            const userId = document.getElementById('user-id').value;
+        // Token-Based Sync Functions
+        function generateSyncToken() {
+            const syncData = {
+                tasks: tasks,
+                events: events,
+                timestamp: new Date().toISOString(),
+                version: '1.0'
+            };
+
+            // Convert to base64
+            const jsonString = JSON.stringify(syncData);
+            const token = btoa(unescape(encodeURIComponent(jsonString)));
+
+            // Display the token
+            document.getElementById('sync-token-value').textContent = token;
+            document.getElementById('sync-token-display').style.display = 'block';
+
+            showNotification('Sync token generated!', 'success');
+        }
+
+        function copySyncToken() {
+            const tokenValue = document.getElementById('sync-token-value').textContent;
+
+            // Copy to clipboard
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(tokenValue).then(() => {
+                    showNotification('Token copied to clipboard!', 'success');
+                }).catch(() => {
+                    fallbackCopyTextToClipboard(tokenValue);
+                });
+            } else {
+                fallbackCopyTextToClipboard(tokenValue);
+            }
+        }
+
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                document.execCommand('copy');
+                showNotification('Token copied to clipboard!', 'success');
+            } catch (err) {
+                showNotification('Failed to copy token', 'error');
+            }
+
+            document.body.removeChild(textArea);
+        }
+
+        function syncWithToken() {
+            const tokenInput = document.getElementById('sync-token-input').value.trim();
             const statusDiv = document.getElementById('sync-status');
 
-            if (!serverUrl || !userId) {
-                statusDiv.textContent = '❌ Please enter server URL and user ID';
+            if (!tokenInput) {
+                statusDiv.textContent = '❌ Please enter a sync token';
                 statusDiv.style.color = 'var(--accent-danger)';
                 return;
             }
@@ -1961,28 +2029,40 @@
                 statusDiv.textContent = '🔄 Syncing...';
                 statusDiv.style.color = 'var(--text-secondary)';
 
-                // Upload local tasks
-                const response = await fetch(`${serverUrl}/sync`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        userId: userId,
-                        tasks: tasks
-                    })
-                });
+                // Decode the token
+                const jsonString = decodeURIComponent(escape(atob(tokenInput)));
+                const syncData = JSON.parse(jsonString);
 
-                if (response.ok) {
-                    const data = await response.json();
-                    statusDiv.textContent = '✅ Sync successful!';
+                // Validate the data
+                if (!syncData.tasks || !syncData.events) {
+                    throw new Error('Invalid sync token format');
+                }
+
+                // Merge the data (you can customize this logic)
+                if (confirm('This will merge the synced data with your current data. Continue?')) {
+                    // Merge tasks (avoid duplicates by checking IDs)
+                    const existingTaskIds = new Set(tasks.map(t => t.id));
+                    const newTasks = syncData.tasks.filter(t => !existingTaskIds.has(t.id));
+                    tasks = [...tasks, ...newTasks];
+
+                    // Merge events
+                    const existingEventIds = new Set(events.map(e => e.id));
+                    const newEvents = syncData.events.filter(e => !existingEventIds.has(e.id));
+                    events = [...events, ...newEvents];
+
+                    // Save
+                    saveTasks();
+                    saveEvents();
+
+                    statusDiv.textContent = `✅ Synced! Added ${newTasks.length} tasks and ${newEvents.length} events`;
                     statusDiv.style.color = 'var(--accent-success)';
-                    showNotification('Synced successfully!', 'success');
-                } else {
-                    throw new Error('Sync failed');
+                    showNotification('Calendars synced successfully!', 'success');
+
+                    // Clear input
+                    document.getElementById('sync-token-input').value = '';
                 }
             } catch (error) {
-                statusDiv.textContent = '❌ Sync failed. Check your connection.';
+                statusDiv.textContent = '❌ Invalid sync token. Please check and try again.';
                 statusDiv.style.color = 'var(--accent-danger)';
                 console.error('Sync error:', error);
             }
