@@ -1986,7 +1986,7 @@
                 };
 
                 // Upload to server
-                const response = await fetch(`${API_BASE_URL}/tokens/${tokenId}`, {
+                const response = await fetch(`${API_BASE_URL}/sync/${tokenId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
