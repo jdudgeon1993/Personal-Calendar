@@ -1964,15 +1964,18 @@
         // Token-Based Sync Functions
         function generateSyncToken() {
             const syncData = {
-                tasks: tasks,
-                events: events,
-                timestamp: new Date().toISOString(),
-                version: '1.0'
+                t: tasks,  // Shortened key names to reduce size
+                e: events,
+                ts: new Date().toISOString(),
+                v: '2.0'
             };
 
-            // Convert to base64
+            // Compress by removing whitespace and convert to base64
             const jsonString = JSON.stringify(syncData);
-            const token = btoa(unescape(encodeURIComponent(jsonString)));
+            const compressed = btoa(unescape(encodeURIComponent(jsonString)));
+
+            // Add PLAN- prefix
+            const token = `PLAN-${compressed}`;
 
             // Display the token
             document.getElementById('sync-token-value').textContent = token;
@@ -2029,25 +2032,35 @@
                 statusDiv.textContent = '🔄 Syncing...';
                 statusDiv.style.color = 'var(--text-secondary)';
 
+                // Remove PLAN- prefix if present
+                let cleanToken = tokenInput;
+                if (tokenInput.startsWith('PLAN-')) {
+                    cleanToken = tokenInput.substring(5);
+                }
+
                 // Decode the token
-                const jsonString = decodeURIComponent(escape(atob(tokenInput)));
+                const jsonString = decodeURIComponent(escape(atob(cleanToken)));
                 const syncData = JSON.parse(jsonString);
 
+                // Handle both old (tasks/events) and new (t/e) formats
+                const syncTasks = syncData.t || syncData.tasks || [];
+                const syncEvents = syncData.e || syncData.events || [];
+
                 // Validate the data
-                if (!syncData.tasks || !syncData.events) {
+                if (!Array.isArray(syncTasks) && !Array.isArray(syncEvents)) {
                     throw new Error('Invalid sync token format');
                 }
 
-                // Merge the data (you can customize this logic)
+                // Merge the data
                 if (confirm('This will merge the synced data with your current data. Continue?')) {
                     // Merge tasks (avoid duplicates by checking IDs)
                     const existingTaskIds = new Set(tasks.map(t => t.id));
-                    const newTasks = syncData.tasks.filter(t => !existingTaskIds.has(t.id));
+                    const newTasks = syncTasks.filter(t => !existingTaskIds.has(t.id));
                     tasks = [...tasks, ...newTasks];
 
                     // Merge events
                     const existingEventIds = new Set(events.map(e => e.id));
-                    const newEvents = syncData.events.filter(e => !existingEventIds.has(e.id));
+                    const newEvents = syncEvents.filter(e => !existingEventIds.has(e.id));
                     events = [...events, ...newEvents];
 
                     // Save
