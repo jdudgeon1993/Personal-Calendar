@@ -1967,7 +1967,7 @@
         }
 
         // Token-Based Sync Functions
-        async function generateSyncToken() {
+        function generateSyncToken() {
             const statusDiv = document.getElementById('sync-status');
 
             try {
@@ -1985,24 +1985,18 @@
                     version: '2.0'
                 };
 
-                // Upload to server
-                const response = await fetch(`${API_BASE_URL}/sync/${tokenId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(syncData)
-                });
+                // Store in localStorage with token as key
+                localStorage.setItem(`sync_token_${tokenId}`, JSON.stringify(syncData));
 
-                if (!response.ok) {
-                    throw new Error('Failed to upload data');
-                }
+                // Also store mapping for expiration (24 hours)
+                const expiryTime = new Date().getTime() + (24 * 60 * 60 * 1000);
+                localStorage.setItem(`sync_token_${tokenId}_expiry`, expiryTime.toString());
 
                 // Display the short token
                 document.getElementById('sync-token-value').textContent = token;
                 document.getElementById('sync-token-display').style.display = 'block';
 
-                statusDiv.textContent = '✅ Token generated successfully!';
+                statusDiv.textContent = '✅ Token generated! Valid for 24 hours.';
                 statusDiv.style.color = 'var(--accent-success)';
                 showNotification('Sync token generated!', 'success');
             } catch (error) {
@@ -2056,7 +2050,7 @@
             document.body.removeChild(textArea);
         }
 
-        async function syncWithToken() {
+        function syncWithToken() {
             const tokenInput = document.getElementById('sync-token-input').value.trim().toUpperCase();
             const statusDiv = document.getElementById('sync-status');
 
@@ -2080,22 +2074,26 @@
                 // Extract token ID (remove PLAN- prefix)
                 const tokenId = tokenInput.substring(5);
 
-                // Fetch data from server
-                const response = await fetch(`${API_BASE_URL}/sync/${tokenId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
+                // Check if token exists in localStorage
+                const syncDataStr = localStorage.getItem(`sync_token_${tokenId}`);
+                const expiryStr = localStorage.getItem(`sync_token_${tokenId}_expiry`);
 
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        throw new Error('Token not found. Please check and try again.');
-                    }
-                    throw new Error('Failed to fetch sync data');
+                if (!syncDataStr) {
+                    throw new Error('Token not found. Make sure you\'re on the same device that generated it, or ask the person to share their data via Export.');
                 }
 
-                const syncData = await response.json();
+                // Check if token has expired
+                if (expiryStr) {
+                    const expiryTime = parseInt(expiryStr);
+                    if (new Date().getTime() > expiryTime) {
+                        // Clean up expired token
+                        localStorage.removeItem(`sync_token_${tokenId}`);
+                        localStorage.removeItem(`sync_token_${tokenId}_expiry`);
+                        throw new Error('Token has expired. Please generate a new one.');
+                    }
+                }
+
+                const syncData = JSON.parse(syncDataStr);
 
                 // Validate the data
                 if (!syncData.tasks || !syncData.events) {
