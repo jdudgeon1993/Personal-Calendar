@@ -467,6 +467,10 @@
             .stat-card {
                 padding: 20px;
             }
+            #sync-indicator {
+                font-size: 10px;
+                padding: 4px 8px;
+            }
         }
 
         .search-bar {
@@ -661,7 +665,10 @@
     <!-- Header Bar -->
     <div class="header-bar">
         <h1 class="text-2xl font-bold gradient-text">Taskify Elite ✨</h1>
-        <div style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <div id="sync-indicator" style="display: none; font-size: 12px; color: var(--accent-success); font-weight: 600; padding: 6px 12px; background: rgba(16, 185, 129, 0.1); border-radius: 8px;" title="Sync active">
+                🔄 Synced
+            </div>
             <button class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">🌓</button>
             <button class="icon-btn" onclick="openSettingsModal()" title="Settings">⚙️</button>
         </div>
@@ -927,7 +934,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">End Time</label>
-                        <input type="time" id="task-end-time">
+                        <input type="time" class="input" id="task-end-time">
                     </div>
                 </div>
 
@@ -1085,28 +1092,48 @@
             <div class="card mb-4">
                 <h3 class="text-lg font-bold mb-4">☁️ Calendar Sync</h3>
 
-                <div style="margin-bottom: 16px;">
-                    <button class="btn btn-primary" style="width: 100%; margin-bottom: 8px;" onclick="generateSyncToken()">
-                        🔑 Generate Sync Token
-                    </button>
-                    <div id="sync-token-display" style="display: none; padding: 12px; background: var(--bg-secondary); border-radius: 8px; margin-top: 8px;">
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Your Sync Token:</div>
-                        <div id="sync-token-value" style="font-family: monospace; font-size: 14px; word-break: break-all; margin-bottom: 8px;"></div>
-                        <button class="btn btn-secondary" style="width: 100%;" onclick="copySyncToken()">
-                            📋 Copy Token
-                        </button>
+                <!-- Login Status -->
+                <div id="sync-login-status" style="display: none; padding: 12px; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 16px; border: 2px solid var(--accent-success);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">🔒 Logged In with Token:</div>
+                            <div id="logged-in-token" style="font-family: monospace; font-size: 14px; font-weight: 600; color: var(--accent-success);"></div>
+                        </div>
                     </div>
+                    <button class="btn btn-secondary" style="width: 100%; background: var(--accent-danger); color: white; border: none;" onclick="logoutSync()">
+                        🚪 Logout
+                    </button>
                 </div>
 
-                <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
-                    <div class="form-group">
-                        <label class="form-label">Enter Sync Token</label>
-                        <textarea class="textarea" id="sync-token-input" placeholder="Paste sync token here to sync calendars..." style="min-height: 80px; font-family: monospace; font-size: 12px;"></textarea>
+                <div id="sync-login-section">
+                    <div style="margin-bottom: 16px;">
+                        <button class="btn btn-primary" style="width: 100%; margin-bottom: 8px;" onclick="generateSyncToken()">
+                            🔑 Generate Sync Token
+                        </button>
+                        <div id="sync-token-display" style="display: none; padding: 12px; background: var(--bg-secondary); border-radius: 8px; margin-top: 8px;">
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Your Sync Token:</div>
+                            <div id="sync-token-value" style="font-family: monospace; font-size: 14px; word-break: break-all; margin-bottom: 8px;"></div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary" style="flex: 1;" onclick="copySyncToken()">
+                                    📋 Copy Token
+                                </button>
+                                <button class="btn btn-primary" style="flex: 1;" onclick="loginWithCurrentToken()">
+                                    🔐 Use This Token
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <button class="btn btn-primary" style="width: 100%;" onclick="syncWithToken()">
-                        🔄 Sync Calendars
-                    </button>
-                    <div id="sync-status" class="mt-4 text-sm text-secondary"></div>
+
+                    <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                        <div class="form-group">
+                            <label class="form-label">Enter Sync Token to Login</label>
+                            <textarea class="textarea" id="sync-token-input" placeholder="Paste sync token here to login and enable auto-sync..." style="min-height: 80px; font-family: monospace; font-size: 12px;"></textarea>
+                        </div>
+                        <button class="btn btn-primary" style="width: 100%;" onclick="loginWithToken()">
+                            🔐 Login & Sync
+                        </button>
+                        <div id="sync-status" class="mt-4 text-sm text-secondary"></div>
+                    </div>
                 </div>
             </div>
 
@@ -1154,6 +1181,7 @@
             loadNotes();
             loadTheme();
             loadSettings();
+            loadSyncStatus();
             renderHub();
             renderBoard();
             renderPulse();
@@ -1172,6 +1200,9 @@
             document.getElementById('event-recurring').addEventListener('change', function(e) {
                 document.getElementById('event-recurring-options').style.display = e.target.checked ? 'block' : 'none';
             });
+
+            // Auto-sync every 5 minutes if logged in
+            setInterval(autoSync, 5 * 60 * 1000);
         });
 
         // Local Storage Functions
@@ -1187,6 +1218,8 @@
             renderHub();
             renderBoard();
             renderPulse();
+            // Trigger auto-sync when data changes
+            autoSync();
         }
 
         function loadEvents() {
@@ -1200,6 +1233,8 @@
             localStorage.setItem('taskify_events', JSON.stringify(events));
             renderHub();
             renderPulse();
+            // Trigger auto-sync when data changes
+            autoSync();
         }
 
         function loadNotes() {
@@ -1393,7 +1428,17 @@
             const card = document.createElement('div');
             card.className = 'task-card';
             card.setAttribute('data-id', task.id);
-            card.onclick = () => editTask(task.id);
+
+            // Track if this is a drag or a click
+            let isDragging = false;
+            card.addEventListener('mousedown', () => { isDragging = false; });
+            card.addEventListener('mousemove', () => { isDragging = true; });
+            card.addEventListener('mouseup', () => {
+                if (!isDragging) {
+                    editTask(task.id);
+                }
+                isDragging = false;
+            });
 
             let tagsHTML = '';
             if (task.tags && task.tags.length > 0) {
@@ -1967,6 +2012,161 @@
         }
 
         // Token-Based Sync Functions
+        function loadSyncStatus() {
+            const storedToken = localStorage.getItem('taskify_sync_token');
+            if (storedToken) {
+                showLoggedInStatus(storedToken);
+                // Perform initial sync
+                autoSync();
+            }
+        }
+
+        function showLoggedInStatus(token) {
+            document.getElementById('sync-login-status').style.display = 'block';
+            document.getElementById('sync-login-section').style.display = 'none';
+            document.getElementById('logged-in-token').textContent = token;
+            document.getElementById('sync-indicator').style.display = 'block';
+        }
+
+        function showLoggedOutStatus() {
+            document.getElementById('sync-login-status').style.display = 'none';
+            document.getElementById('sync-login-section').style.display = 'block';
+            document.getElementById('sync-token-display').style.display = 'none';
+            document.getElementById('sync-status').textContent = '';
+            document.getElementById('sync-indicator').style.display = 'none';
+        }
+
+        async function loginWithToken() {
+            const tokenInput = document.getElementById('sync-token-input').value.trim().toUpperCase();
+            const statusDiv = document.getElementById('sync-status');
+
+            if (!tokenInput) {
+                statusDiv.textContent = '❌ Please enter a sync token';
+                statusDiv.style.color = 'var(--accent-danger)';
+                return;
+            }
+
+            // Validate token format (PLAN-XXXXX)
+            if (!tokenInput.match(/^PLAN-[A-Z0-9]{5}$/)) {
+                statusDiv.textContent = '❌ Invalid token format. Use PLAN-XXXXX';
+                statusDiv.style.color = 'var(--accent-danger)';
+                return;
+            }
+
+            try {
+                statusDiv.textContent = '🔄 Logging in and syncing...';
+                statusDiv.style.color = 'var(--text-secondary)';
+
+                // Extract token ID (remove PLAN- prefix)
+                const tokenId = tokenInput.substring(5);
+
+                // Fetch data from server to verify token exists
+                const response = await fetch(`${API_BASE_URL}/sync/${tokenId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error('Token not found. Please check and try again.');
+                    }
+                    throw new Error('Failed to connect to sync server');
+                }
+
+                const syncData = await response.json();
+
+                // Validate the data
+                if (!syncData.tasks || !syncData.events) {
+                    throw new Error('Invalid sync data format');
+                }
+
+                // Merge the data
+                if (tasks.length > 0 || events.length > 0) {
+                    if (!confirm('This will merge the synced data with your current data. Continue?')) {
+                        statusDiv.textContent = '';
+                        return;
+                    }
+                }
+
+                // Merge tasks (avoid duplicates by checking IDs)
+                const existingTaskIds = new Set(tasks.map(t => t.id));
+                const newTasks = syncData.tasks.filter(t => !existingTaskIds.has(t.id));
+                tasks = [...tasks, ...newTasks];
+
+                // Merge events
+                const existingEventIds = new Set(events.map(e => e.id));
+                const newEvents = syncData.events.filter(e => !existingEventIds.has(e.id));
+                events = [...events, ...newEvents];
+
+                // Save
+                saveTasks();
+                saveEvents();
+
+                // Store the token
+                localStorage.setItem('taskify_sync_token', tokenInput);
+
+                // Update UI
+                showLoggedInStatus(tokenInput);
+                document.getElementById('sync-token-input').value = '';
+
+                showNotification(`Logged in! Synced ${newTasks.length} tasks and ${newEvents.length} events`, 'success');
+            } catch (error) {
+                statusDiv.textContent = `❌ ${error.message || 'Login failed. Check your connection.'}`;
+                statusDiv.style.color = 'var(--accent-danger)';
+                console.error('Login error:', error);
+            }
+        }
+
+        function loginWithCurrentToken() {
+            const token = document.getElementById('sync-token-value').textContent;
+            if (token) {
+                localStorage.setItem('taskify_sync_token', token);
+                showLoggedInStatus(token);
+                showNotification('Logged in with this token!', 'success');
+            }
+        }
+
+        function logoutSync() {
+            if (confirm('Are you sure you want to logout? You can login again later with your token.')) {
+                localStorage.removeItem('taskify_sync_token');
+                showLoggedOutStatus();
+                showNotification('Logged out successfully', 'success');
+            }
+        }
+
+        async function autoSync() {
+            const storedToken = localStorage.getItem('taskify_sync_token');
+            if (!storedToken) return;
+
+            try {
+                // Upload current data to server
+                const tokenId = storedToken.substring(5); // Remove PLAN- prefix
+
+                const syncData = {
+                    tasks: tasks,
+                    events: events,
+                    timestamp: new Date().toISOString(),
+                    version: '2.0'
+                };
+
+                await fetch(`${API_BASE_URL}/sync/${tokenId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(syncData)
+                });
+
+                // Silently sync - no notification unless there's an error
+                console.log('Auto-sync completed');
+            } catch (error) {
+                console.error('Auto-sync error:', error);
+                // Don't show error notifications for auto-sync to avoid interrupting user
+            }
+        }
+
         async function generateSyncToken() {
             const statusDiv = document.getElementById('sync-status');
 
@@ -2002,7 +2202,7 @@
                 document.getElementById('sync-token-value').textContent = token;
                 document.getElementById('sync-token-display').style.display = 'block';
 
-                statusDiv.textContent = '✅ Token generated! Share to sync across devices.';
+                statusDiv.textContent = '✅ Token generated! You can copy it or use it to login.';
                 statusDiv.style.color = 'var(--accent-success)';
                 showNotification('Sync token generated!', 'success');
             } catch (error) {
@@ -2056,81 +2256,6 @@
             document.body.removeChild(textArea);
         }
 
-        async function syncWithToken() {
-            const tokenInput = document.getElementById('sync-token-input').value.trim().toUpperCase();
-            const statusDiv = document.getElementById('sync-status');
-
-            if (!tokenInput) {
-                statusDiv.textContent = '❌ Please enter a sync token';
-                statusDiv.style.color = 'var(--accent-danger)';
-                return;
-            }
-
-            // Validate token format (PLAN-XXXXX)
-            if (!tokenInput.match(/^PLAN-[A-Z0-9]{5}$/)) {
-                statusDiv.textContent = '❌ Invalid token format. Use PLAN-XXXXX';
-                statusDiv.style.color = 'var(--accent-danger)';
-                return;
-            }
-
-            try {
-                statusDiv.textContent = '🔄 Syncing...';
-                statusDiv.style.color = 'var(--text-secondary)';
-
-                // Extract token ID (remove PLAN- prefix)
-                const tokenId = tokenInput.substring(5);
-
-                // Fetch data from server
-                const response = await fetch(`${API_BASE_URL}/sync/${tokenId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        throw new Error('Token not found. Please check and try again.');
-                    }
-                    throw new Error('Failed to fetch sync data from server');
-                }
-
-                const syncData = await response.json();
-
-                // Validate the data
-                if (!syncData.tasks || !syncData.events) {
-                    throw new Error('Invalid sync data format');
-                }
-
-                // Merge the data
-                if (confirm('This will merge the synced data with your current data. Continue?')) {
-                    // Merge tasks (avoid duplicates by checking IDs)
-                    const existingTaskIds = new Set(tasks.map(t => t.id));
-                    const newTasks = syncData.tasks.filter(t => !existingTaskIds.has(t.id));
-                    tasks = [...tasks, ...newTasks];
-
-                    // Merge events
-                    const existingEventIds = new Set(events.map(e => e.id));
-                    const newEvents = syncData.events.filter(e => !existingEventIds.has(e.id));
-                    events = [...events, ...newEvents];
-
-                    // Save
-                    saveTasks();
-                    saveEvents();
-
-                    statusDiv.textContent = `✅ Synced! Added ${newTasks.length} tasks and ${newEvents.length} events`;
-                    statusDiv.style.color = 'var(--accent-success)';
-                    showNotification('Calendars synced successfully!', 'success');
-
-                    // Clear input
-                    document.getElementById('sync-token-input').value = '';
-                }
-            } catch (error) {
-                statusDiv.textContent = `❌ ${error.message || 'Sync failed. Check your connection.'}`;
-                statusDiv.style.color = 'var(--accent-danger)';
-                console.error('Sync error:', error);
-            }
-        }
 
         // Data Management
         function exportData() {
