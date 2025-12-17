@@ -560,6 +560,9 @@
             transition: all 0.3s ease;
             z-index: 1;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            min-height: auto;
+            height: auto;
+            overflow: visible;
         }
 
         .calendar-event:hover {
@@ -1531,7 +1534,8 @@
                     const eventDiv = document.createElement('div');
                     eventDiv.className = 'calendar-event';
                     eventDiv.style.top = `${topPosition}px`;
-                    eventDiv.style.height = `${height}px`;
+                    // Use min-height for duration indicator, but allow content to expand
+                    eventDiv.style.minHeight = `${Math.max(height, 40)}px`;
                     eventDiv.onclick = () => editEvent(event.id);
 
                     // Check if event is currently active
@@ -1544,9 +1548,10 @@
                     }
 
                     eventDiv.innerHTML = `
-                        <div style="font-weight: 700; margin-bottom: 2px;">${event.title}</div>
-                        <div style="font-size: 11px; opacity: 0.9;">${event.startTime} - ${event.endTime}</div>
-                        ${event.location ? `<div style="font-size: 11px; margin-top: 2px;">📍 ${event.location}</div>` : ''}
+                        <div style="font-weight: 700; margin-bottom: 2px; line-height: 1.3;">${event.title}</div>
+                        <div style="font-size: 11px; opacity: 0.9; line-height: 1.3;">${event.startTime} - ${event.endTime}</div>
+                        ${event.location ? `<div style="font-size: 11px; margin-top: 2px; line-height: 1.3;">📍 ${event.location}</div>` : ''}
+                        ${event.description ? `<div style="font-size: 11px; margin-top: 4px; opacity: 0.8; line-height: 1.3;">${event.description}</div>` : ''}
                     `;
 
                     hourContainer.appendChild(eventDiv);
@@ -1962,26 +1967,59 @@
         }
 
         // Token-Based Sync Functions
-        function generateSyncToken() {
-            const syncData = {
-                t: tasks,  // Shortened key names to reduce size
-                e: events,
-                ts: new Date().toISOString(),
-                v: '2.0'
-            };
+        async function generateSyncToken() {
+            const statusDiv = document.getElementById('sync-status');
 
-            // Compress by removing whitespace and convert to base64
-            const jsonString = JSON.stringify(syncData);
-            const compressed = btoa(unescape(encodeURIComponent(jsonString)));
+            try {
+                statusDiv.textContent = '🔄 Generating token...';
+                statusDiv.style.color = 'var(--text-secondary)';
 
-            // Add PLAN- prefix
-            const token = `PLAN-${compressed}`;
+                // Generate short 5-character token ID
+                const tokenId = generateShortTokenId();
+                const token = `PLAN-${tokenId}`;
 
-            // Display the token
-            document.getElementById('sync-token-value').textContent = token;
-            document.getElementById('sync-token-display').style.display = 'block';
+                const syncData = {
+                    tasks: tasks,
+                    events: events,
+                    timestamp: new Date().toISOString(),
+                    version: '2.0'
+                };
 
-            showNotification('Sync token generated!', 'success');
+                // Upload to server
+                const response = await fetch(`${API_BASE_URL}/sync/${tokenId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(syncData)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to upload data');
+                }
+
+                // Display the short token
+                document.getElementById('sync-token-value').textContent = token;
+                document.getElementById('sync-token-display').style.display = 'block';
+
+                statusDiv.textContent = '✅ Token generated successfully!';
+                statusDiv.style.color = 'var(--accent-success)';
+                showNotification('Sync token generated!', 'success');
+            } catch (error) {
+                statusDiv.textContent = '❌ Failed to generate token. Please try again.';
+                statusDiv.style.color = 'var(--accent-danger)';
+                console.error('Token generation error:', error);
+            }
+        }
+
+        function generateShortTokenId() {
+            // Generate 5-character alphanumeric ID
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let id = '';
+            for (let i = 0; i < 5; i++) {
+                id += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return id;
         }
 
         function copySyncToken() {
@@ -2018,8 +2056,8 @@
             document.body.removeChild(textArea);
         }
 
-        function syncWithToken() {
-            const tokenInput = document.getElementById('sync-token-input').value.trim();
+        async function syncWithToken() {
+            const tokenInput = document.getElementById('sync-token-input').value.trim().toUpperCase();
             const statusDiv = document.getElementById('sync-status');
 
             if (!tokenInput) {
@@ -2028,39 +2066,52 @@
                 return;
             }
 
+            // Validate token format (PLAN-XXXXX)
+            if (!tokenInput.match(/^PLAN-[A-Z0-9]{5}$/)) {
+                statusDiv.textContent = '❌ Invalid token format. Use PLAN-XXXXX';
+                statusDiv.style.color = 'var(--accent-danger)';
+                return;
+            }
+
             try {
                 statusDiv.textContent = '🔄 Syncing...';
                 statusDiv.style.color = 'var(--text-secondary)';
 
-                // Remove PLAN- prefix if present
-                let cleanToken = tokenInput;
-                if (tokenInput.startsWith('PLAN-')) {
-                    cleanToken = tokenInput.substring(5);
+                // Extract token ID (remove PLAN- prefix)
+                const tokenId = tokenInput.substring(5);
+
+                // Fetch data from server
+                const response = await fetch(`${API_BASE_URL}/sync/${tokenId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error('Token not found. Please check and try again.');
+                    }
+                    throw new Error('Failed to fetch sync data');
                 }
 
-                // Decode the token
-                const jsonString = decodeURIComponent(escape(atob(cleanToken)));
-                const syncData = JSON.parse(jsonString);
-
-                // Handle both old (tasks/events) and new (t/e) formats
-                const syncTasks = syncData.t || syncData.tasks || [];
-                const syncEvents = syncData.e || syncData.events || [];
+                const syncData = await response.json();
 
                 // Validate the data
-                if (!Array.isArray(syncTasks) && !Array.isArray(syncEvents)) {
-                    throw new Error('Invalid sync token format');
+                if (!syncData.tasks || !syncData.events) {
+                    throw new Error('Invalid sync data format');
                 }
 
                 // Merge the data
                 if (confirm('This will merge the synced data with your current data. Continue?')) {
                     // Merge tasks (avoid duplicates by checking IDs)
                     const existingTaskIds = new Set(tasks.map(t => t.id));
-                    const newTasks = syncTasks.filter(t => !existingTaskIds.has(t.id));
+                    const newTasks = syncData.tasks.filter(t => !existingTaskIds.has(t.id));
                     tasks = [...tasks, ...newTasks];
 
                     // Merge events
                     const existingEventIds = new Set(events.map(e => e.id));
-                    const newEvents = syncEvents.filter(e => !existingEventIds.has(e.id));
+                    const newEvents = syncData.events.filter(e => !existingEventIds.has(e.id));
                     events = [...events, ...newEvents];
 
                     // Save
@@ -2075,7 +2126,7 @@
                     document.getElementById('sync-token-input').value = '';
                 }
             } catch (error) {
-                statusDiv.textContent = '❌ Invalid sync token. Please check and try again.';
+                statusDiv.textContent = `❌ ${error.message || 'Sync failed. Please try again.'}`;
                 statusDiv.style.color = 'var(--accent-danger)';
                 console.error('Sync error:', error);
             }
