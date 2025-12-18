@@ -746,18 +746,18 @@
         <div style="margin-bottom: 8px;">
             <h1 style="font-size: 32px; font-weight: 800; margin: 0; color: var(--text-primary);">Taskify || Planner Dashboard</h1>
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div>
-                <div id="header-datetime" style="font-size: 15px; color: var(--text-secondary); margin-bottom: 4px;"></div>
-                <div id="header-greeting" style="font-size: 18px; font-weight: 600; color: #4A90E2;"></div>
+        <div style="margin-bottom: 6px;">
+            <div id="header-datetime" style="font-size: 15px; color: var(--text-secondary);"></div>
+        </div>
+        <div style="margin-bottom: 12px;">
+            <div id="header-greeting" style="font-size: 18px; font-weight: 600; color: #4A90E2;"></div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <div id="sync-indicator" style="display: none; font-size: 12px; color: var(--accent-success); font-weight: 600; padding: 6px 12px; background: rgba(16, 185, 129, 0.1); border-radius: 8px;" title="Sync active">
+                🔄 Synced
             </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <div id="sync-indicator" style="display: none; font-size: 12px; color: var(--accent-success); font-weight: 600; padding: 6px 12px; background: rgba(16, 185, 129, 0.1); border-radius: 8px;" title="Sync active">
-                    🔄 Synced
-                </div>
-                <button class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">🌓</button>
-                <button class="icon-btn" onclick="openSettingsModal()" title="Settings">⚙️</button>
-            </div>
+            <button class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">🌓</button>
+            <button class="icon-btn" onclick="openSettingsModal()" title="Settings">⚙️</button>
         </div>
     </div>
 
