@@ -1440,25 +1440,48 @@
             if (filteredTasks.length === 0) {
                 allTasksContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>No tasks to show</div></div>';
             } else {
-                allTasksContainer.innerHTML = filteredTasks.map(task => `
-                    <div class="task-card" onclick="editTask('${task.id}')" style="cursor: pointer;">
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                            <div style="flex: 1;">
-                                <div style="font-weight: 600; margin-bottom: 4px;">${task.title}</div>
-                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                                    <span class="tag priority-${task.priority}">${task.priority}</span>
-                                    <span class="tag status-${task.status}">${task.status.replace('-', ' ')}</span>
-                                    ${task.category ? `<span class="tag" style="background: rgba(99, 102, 241, 0.2);">${task.category}</span>` : ''}
+                allTasksContainer.innerHTML = filteredTasks.map(task => {
+                    // Check if task is blocked
+                    const { met: depsMet, blocking } = checkDependenciesMet(task);
+                    const isBlocked = !depsMet && task.status === 'not-started';
+                    const blockedStyle = isBlocked ? 'opacity: 0.7; border-left: 3px solid var(--accent-danger);' : '';
+
+                    let blockedIndicator = '';
+                    if (isBlocked) {
+                        const blockingNames = blocking.map(t => t.title).join(', ');
+                        blockedIndicator = `
+                            <div style="margin-top: 8px; padding: 8px; background: rgba(239, 68, 68, 0.1); border-left: 3px solid var(--accent-danger); border-radius: 4px;">
+                                <div style="font-size: 11px; font-weight: 600; color: var(--accent-danger); margin-bottom: 2px;">
+                                    ⛔ BLOCKED
+                                </div>
+                                <div style="font-size: 10px; color: var(--text-secondary);">
+                                    Waiting for: ${blockingNames}
                                 </div>
                             </div>
-                            <div style="text-align: right;">
-                                ${task.dueDate ? `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">📅 ${formatDate(task.dueDate)}</div>` : ''}
-                                ${task.startTime ? `<div style="font-size: 12px; color: var(--text-secondary);">${task.startTime}</div>` : ''}
+                        `;
+                    }
+
+                    return `
+                        <div class="task-card" onclick="editTask('${task.id}')" style="cursor: pointer; ${blockedStyle}">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 600; margin-bottom: 4px;">${task.title}</div>
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                        <span class="tag priority-${task.priority}">${task.priority}</span>
+                                        <span class="tag status-${task.status}">${task.status.replace('-', ' ')}</span>
+                                        ${task.category ? `<span class="tag" style="background: rgba(99, 102, 241, 0.2);">${task.category}</span>` : ''}
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    ${task.dueDate ? `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">📅 ${formatDate(task.dueDate)}</div>` : ''}
+                                    ${task.startTime ? `<div style="font-size: 12px; color: var(--text-secondary);">${task.startTime}</div>` : ''}
+                                </div>
                             </div>
+                            ${task.description ? `<div style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">${task.description}</div>` : ''}
+                            ${blockedIndicator}
                         </div>
-                        ${task.description ? `<div style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">${task.description}</div>` : ''}
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             }
         }
 
@@ -1523,6 +1546,28 @@
                 tagsHTML = task.tags.map(tag => `<span class="tag" style="background: rgba(139, 92, 246, 0.2); color: var(--accent-secondary);">${tag}</span>`).join('');
             }
 
+            // Check if task is blocked by dependencies
+            const { met: depsMet, blocking } = checkDependenciesMet(task);
+            const isBlocked = !depsMet && task.status === 'not-started';
+
+            let blockedIndicator = '';
+            if (isBlocked) {
+                const blockingNames = blocking.map(t => t.title).join(', ');
+                blockedIndicator = `
+                    <div style="margin-top: 8px; padding: 8px; background: rgba(239, 68, 68, 0.1); border-left: 3px solid var(--accent-danger); border-radius: 4px;">
+                        <div style="font-size: 11px; font-weight: 600; color: var(--accent-danger); margin-bottom: 2px;">
+                            ⛔ BLOCKED
+                        </div>
+                        <div style="font-size: 10px; color: var(--text-secondary);">
+                            Waiting for: ${blockingNames}
+                        </div>
+                    </div>
+                `;
+                // Add visual styling to blocked card
+                card.style.opacity = '0.7';
+                card.style.borderLeft = '3px solid var(--accent-danger)';
+            }
+
             let subtaskProgress = '';
             if (task.subtasks && task.subtasks.length > 0) {
                 const completed = task.subtasks.filter(st => st.completed).length;
@@ -1552,6 +1597,7 @@
                     ${tagsHTML}
                 </div>
                 ${subtaskProgress}
+                ${blockedIndicator}
             `;
 
             return card;
@@ -1596,10 +1642,31 @@
                         onEnd: function(evt) {
                             const taskId = evt.item.getAttribute('data-id');
                             const newStatus = statusMap[evt.to.id];
+                            const oldStatus = statusMap[evt.from.id];
 
                             const task = tasks.find(t => t.id === taskId);
                             if (task) {
+                                // Check if trying to start a blocked task
+                                if (newStatus === 'in-progress' && oldStatus === 'not-started') {
+                                    const { met, blocking } = checkDependenciesMet(task);
+                                    if (!met) {
+                                        // Revert the move
+                                        evt.item.remove();
+                                        const oldColumn = document.getElementById(evt.from.id);
+                                        oldColumn.appendChild(evt.item);
+
+                                        const blockingNames = blocking.map(t => t.title).join(', ');
+                                        alert(`⛔ Cannot start "${task.title}"\n\nThis task is blocked by:\n${blockingNames}\n\nComplete those tasks first!`);
+
+                                        setTimeout(() => {
+                                            isDraggingTask = false;
+                                        }, 100);
+                                        return;
+                                    }
+                                }
+
                                 task.status = newStatus;
+                                task.updatedAt = new Date().toISOString();
                                 saveTasks();
 
                                 // Celebration on completion
@@ -1924,6 +1991,17 @@
                 createdAt: currentEditingTask ? tasks.find(t => t.id === currentEditingTask).createdAt : new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             };
+
+            // Check if trying to start a task with unmet dependencies
+            if (taskData.status === 'in-progress') {
+                const { met, blocking } = checkDependenciesMet(taskData);
+                if (!met) {
+                    const blockingNames = blocking.map(t => t.title).join(', ');
+                    if (!confirm(`⚠️ Warning: This task has incomplete dependencies:\n\n${blockingNames}\n\nAre you sure you want to start it anyway?`)) {
+                        return;
+                    }
+                }
+            }
 
             if (currentEditingTask) {
                 // Update existing task
@@ -2564,6 +2642,38 @@
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
+        }
+
+        // Dependency Management
+        function checkDependenciesMet(task) {
+            if (!task.dependencies || task.dependencies.length === 0) {
+                return { met: true, blocking: [] };
+            }
+
+            const blockingTasks = [];
+            for (const depId of task.dependencies) {
+                const depTask = tasks.find(t => t.id === depId);
+                if (depTask && depTask.status !== 'done') {
+                    blockingTasks.push(depTask);
+                }
+            }
+
+            return {
+                met: blockingTasks.length === 0,
+                blocking: blockingTasks
+            };
+        }
+
+        function isTaskBlocked(task) {
+            const { met } = checkDependenciesMet(task);
+            return !met && task.status === 'not-started';
+        }
+
+        function getBlockingTasksInfo(task) {
+            const { blocking } = checkDependenciesMet(task);
+            if (blocking.length === 0) return null;
+
+            return blocking.map(t => t.title).join(', ');
         }
 
         function formatDate(dateString) {
