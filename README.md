@@ -1201,8 +1201,8 @@
                 document.getElementById('event-recurring-options').style.display = e.target.checked ? 'block' : 'none';
             });
 
-            // Auto-sync every 5 minutes if logged in
-            setInterval(autoSync, 5 * 60 * 1000);
+            // Setup sync and auto-refresh intervals
+            setupSyncIntervals();
         });
 
         // Local Storage Functions
@@ -1218,8 +1218,8 @@
             renderHub();
             renderBoard();
             renderPulse();
-            // Trigger auto-sync when data changes
-            autoSync();
+            // Trigger auto-sync when data changes (debounced via uploadLocalChanges)
+            uploadLocalChanges();
         }
 
         function loadEvents() {
@@ -1233,8 +1233,8 @@
             localStorage.setItem('taskify_events', JSON.stringify(events));
             renderHub();
             renderPulse();
-            // Trigger auto-sync when data changes
-            autoSync();
+            // Trigger auto-sync when data changes (debounced via uploadLocalChanges)
+            uploadLocalChanges();
         }
 
         function loadNotes() {
@@ -1314,13 +1314,16 @@
             const highPriority = tasks.filter(t => t.priority === 'high' && t.status !== 'done').length;
 
             // Calculate overdue
-            const today = new Date().toISOString().split('T')[0];
+            const today = getTodayDateString();
             const overdue = tasks.filter(t => t.dueDate && t.dueDate < today && t.status !== 'done').length;
 
             // Calculate this week's tasks
             const weekFromNow = new Date();
             weekFromNow.setDate(weekFromNow.getDate() + 7);
-            const weekFromNowStr = weekFromNow.toISOString().split('T')[0];
+            const year = weekFromNow.getFullYear();
+            const month = String(weekFromNow.getMonth() + 1).padStart(2, '0');
+            const day = String(weekFromNow.getDate()).padStart(2, '0');
+            const weekFromNowStr = `${year}-${month}-${day}`;
             const thisWeek = tasks.filter(t => t.dueDate && t.dueDate <= weekFromNowStr && t.dueDate >= today).length;
 
             document.getElementById('completion-rate').textContent = `${completionRate}%`;
@@ -1584,7 +1587,7 @@
                     eventDiv.onclick = () => editEvent(event.id);
 
                     // Check if event is currently active
-                    if (selectedDate === new Date().toISOString().split('T')[0]) {
+                    if (selectedDate === getTodayDateString()) {
                         const now = new Date();
                         const nowMinutes = now.getHours() * 60 + now.getMinutes();
                         if (nowMinutes >= startMinutes && nowMinutes <= endMinutes) {
@@ -1609,7 +1612,7 @@
 
         function updateCurrentTimeIndicator() {
             const selectedDate = document.getElementById('pulse-date').value;
-            const today = new Date().toISOString().split('T')[0];
+            const today = getTodayDateString();
 
             // Remove existing indicator
             const existingIndicator = document.querySelector('.current-time-indicator');
@@ -1663,7 +1666,7 @@
             // Update current time indicator every minute
             currentTimeInterval = setInterval(() => {
                 const selectedDate = document.getElementById('pulse-date').value;
-                const today = new Date().toISOString().split('T')[0];
+                const today = getTodayDateString();
                 if (selectedDate === today && document.getElementById('pulse-view').classList.contains('active')) {
                     updateCurrentTimeIndicator();
                 }
@@ -2141,9 +2144,75 @@
             if (!storedToken) return;
 
             try {
-                // Upload current data to server
                 const tokenId = storedToken.substring(5); // Remove PLAN- prefix
 
+                // Step 1: Fetch latest data from server
+                const fetchResponse = await fetch(`${API_BASE_URL}/sync/${tokenId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                let hasChanges = false;
+
+                if (fetchResponse.ok) {
+                    const serverData = await fetchResponse.json();
+
+                    // Step 2: Merge server data with local data
+                    if (serverData.tasks && serverData.events) {
+                        const originalTaskCount = tasks.length;
+                        const originalEventCount = events.length;
+
+                        // Merge tasks - keep most recently updated version
+                        const taskMap = new Map();
+
+                        // Add local tasks to map
+                        tasks.forEach(task => {
+                            taskMap.set(task.id, task);
+                        });
+
+                        // Merge server tasks (only if newer or doesn't exist locally)
+                        serverData.tasks.forEach(serverTask => {
+                            const localTask = taskMap.get(serverTask.id);
+                            if (!localTask || (serverTask.updatedAt && localTask.updatedAt && serverTask.updatedAt > localTask.updatedAt)) {
+                                taskMap.set(serverTask.id, serverTask);
+                                hasChanges = true;
+                            }
+                        });
+
+                        // Merge events
+                        const eventMap = new Map();
+
+                        events.forEach(event => {
+                            eventMap.set(event.id, event);
+                        });
+
+                        serverData.events.forEach(serverEvent => {
+                            const localEvent = eventMap.get(serverEvent.id);
+                            if (!localEvent || (serverEvent.updatedAt && localEvent.updatedAt && serverEvent.updatedAt > localEvent.updatedAt)) {
+                                eventMap.set(serverEvent.id, serverEvent);
+                                hasChanges = true;
+                            }
+                        });
+
+                        // Convert maps back to arrays
+                        tasks = Array.from(taskMap.values());
+                        events = Array.from(eventMap.values());
+
+                        // Save if there were changes
+                        if (hasChanges) {
+                            localStorage.setItem('taskify_elite', JSON.stringify(tasks));
+                            localStorage.setItem('taskify_events', JSON.stringify(events));
+                            renderHub();
+                            renderBoard();
+                            renderPulse();
+                            console.log('Auto-sync: Downloaded and merged changes from server');
+                        }
+                    }
+                }
+
+                // Step 3: Upload current (possibly merged) data back to server
                 const syncData = {
                     tasks: tasks,
                     events: events,
@@ -2159,12 +2228,65 @@
                     body: JSON.stringify(syncData)
                 });
 
-                // Silently sync - no notification unless there's an error
-                console.log('Auto-sync completed');
+                console.log('Auto-sync completed (bidirectional)');
             } catch (error) {
                 console.error('Auto-sync error:', error);
                 // Don't show error notifications for auto-sync to avoid interrupting user
             }
+        }
+
+        // Upload only - used when local changes are made
+        let uploadTimeout = null;
+        async function uploadLocalChanges() {
+            const storedToken = localStorage.getItem('taskify_sync_token');
+            if (!storedToken) return;
+
+            // Debounce uploads to avoid too many requests
+            if (uploadTimeout) clearTimeout(uploadTimeout);
+
+            uploadTimeout = setTimeout(async () => {
+                try {
+                    const tokenId = storedToken.substring(5);
+                    const syncData = {
+                        tasks: tasks,
+                        events: events,
+                        timestamp: new Date().toISOString(),
+                        version: '2.0'
+                    };
+
+                    await fetch(`${API_BASE_URL}/sync/${tokenId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(syncData)
+                    });
+
+                    console.log('Local changes uploaded');
+                } catch (error) {
+                    console.error('Upload error:', error);
+                }
+            }, 1000); // Wait 1 second after last change before uploading
+        }
+
+        // Setup periodic sync and auto-refresh
+        function setupSyncIntervals() {
+            // Bidirectional sync every 30 seconds (download + upload)
+            setInterval(() => {
+                const storedToken = localStorage.getItem('taskify_sync_token');
+                if (storedToken) {
+                    autoSync();
+                }
+            }, 30 * 1000);
+
+            // Auto-refresh page every 15 minutes if logged in
+            setInterval(() => {
+                const storedToken = localStorage.getItem('taskify_sync_token');
+                if (storedToken) {
+                    console.log('Auto-refreshing page to stay in sync...');
+                    location.reload();
+                }
+            }, 15 * 60 * 1000);
         }
 
         async function generateSyncToken() {
@@ -2352,9 +2474,18 @@
             return 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         }
 
+        function getTodayDateString() {
+            // Get local date in YYYY-MM-DD format (avoids timezone offset issues)
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
         function formatDate(dateString) {
             if (!dateString) return '';
-            const date = new Date(dateString);
+            const date = new Date(dateString + 'T00:00:00'); // Parse as local date
             const today = new Date();
             const tomorrow = new Date(today);
             tomorrow.setDate(tomorrow.getDate() + 1);
