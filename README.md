@@ -973,8 +973,13 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Dependencies</label>
-                    <input type="text" class="input" id="task-dependencies" placeholder="Dependent task IDs separated by commas">
+                    <label class="form-label">Dependencies (tasks that must be completed first)</label>
+                    <select multiple class="select" id="task-dependencies" style="min-height: 100px; padding: 8px;">
+                        <!-- Options populated dynamically -->
+                    </select>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                        Hold Ctrl/Cmd to select multiple tasks
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -1922,6 +1927,19 @@
             document.getElementById('subtasks-container').innerHTML = '';
             document.getElementById('recurring-options').style.display = 'none';
 
+            // Populate dependencies dropdown
+            const depsSelect = document.getElementById('task-dependencies');
+            depsSelect.innerHTML = '';
+
+            // Get all tasks except the current one being edited
+            const availableTasks = tasks.filter(t => t.id !== taskId);
+            availableTasks.forEach(t => {
+                const option = document.createElement('option');
+                option.value = t.id;
+                option.textContent = `${t.title} (${t.status})`;
+                depsSelect.appendChild(option);
+            });
+
             if (taskId) {
                 // Edit mode
                 const task = tasks.find(t => t.id === taskId);
@@ -1940,7 +1958,16 @@
                     document.getElementById('task-tags').value = task.tags ? task.tags.join(', ') : '';
                     document.getElementById('task-description').value = task.description || '';
                     document.getElementById('task-milestone').value = task.milestone || '';
-                    document.getElementById('task-dependencies').value = task.dependencies ? task.dependencies.join(', ') : '';
+
+                    // Select dependencies
+                    if (task.dependencies && task.dependencies.length > 0) {
+                        Array.from(depsSelect.options).forEach(opt => {
+                            if (task.dependencies.includes(opt.value)) {
+                                opt.selected = true;
+                            }
+                        });
+                    }
+
                     document.getElementById('task-recurring').checked = task.recurring || false;
                     document.getElementById('task-recurrence').value = task.recurrence || 'daily';
 
@@ -1984,7 +2011,7 @@
                 tags: document.getElementById('task-tags').value.split(',').map(t => t.trim()).filter(t => t),
                 description: document.getElementById('task-description').value,
                 milestone: document.getElementById('task-milestone').value,
-                dependencies: document.getElementById('task-dependencies').value.split(',').map(d => d.trim()).filter(d => d),
+                dependencies: Array.from(document.getElementById('task-dependencies').selectedOptions).map(opt => opt.value),
                 recurring: document.getElementById('task-recurring').checked,
                 recurrence: document.getElementById('task-recurrence').value,
                 subtasks: getSubtasks(),
