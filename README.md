@@ -797,6 +797,11 @@
         </div>
 
         <div class="card mb-6">
+            <h3 class="text-xl font-bold mb-4">🗓️ Upcoming Events</h3>
+            <div id="upcoming-events"></div>
+        </div>
+
+        <div class="card mb-6">
             <h3 class="text-xl font-bold mb-4">🎯 Quick Stats</h3>
             <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -1523,6 +1528,40 @@
                         ${event.description ? `<div style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">${event.description}</div>` : ''}
                     </div>
                 `).join('');
+            }
+
+            // Render upcoming events (next 7 days, excluding today)
+            const weekFromNowDate = new Date();
+            weekFromNowDate.setDate(weekFromNowDate.getDate() + 7);
+            const upcomingEvents = events.filter(e => e.date > today && e.date <= weekFromNowStr).sort((a, b) => {
+                if (a.date === b.date) return a.startTime.localeCompare(b.startTime);
+                return a.date.localeCompare(b.date);
+            });
+
+            const upcomingEventsContainer = document.getElementById('upcoming-events');
+            if (upcomingEvents.length === 0) {
+                upcomingEventsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🗓️</div><div>No upcoming events in the next 7 days</div></div>';
+            } else {
+                upcomingEventsContainer.innerHTML = upcomingEvents.map(event => {
+                    const eventDate = new Date(event.date + 'T00:00:00');
+                    const dateStr = eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                    return `
+                    <div class="task-card" onclick="editEvent('${event.id}')">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; margin-bottom: 4px;">${event.title}</div>
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <span class="tag" style="background: rgba(59, 130, 246, 0.2);">📅 ${dateStr}</span>
+                                    <span class="tag" style="background: rgba(99, 102, 241, 0.2);">${event.category || 'event'}</span>
+                                    ${event.location ? `<span class="tag" style="background: rgba(139, 92, 246, 0.2);">📍 ${event.location}</span>` : ''}
+                                </div>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">${event.startTime} - ${event.endTime}</div>
+                        </div>
+                        ${event.description ? `<div style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">${event.description}</div>` : ''}
+                    </div>
+                `;
+                }).join('');
             }
 
             // Render all tasks list
