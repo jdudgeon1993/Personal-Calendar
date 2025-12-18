@@ -1108,11 +1108,63 @@
 
                 <div class="form-group" id="recurring-options" style="display: none;">
                     <label class="form-label">Recurrence Pattern</label>
-                    <select class="select" id="task-recurrence">
+                    <select class="select" id="task-recurrence" onchange="updateRecurringOptions('task')">
                         <option value="daily">Daily</option>
                         <option value="weekly">Weekly</option>
                         <option value="monthly">Monthly</option>
                     </select>
+
+                    <!-- Daily: Select days of week -->
+                    <div id="task-daily-options" style="display: none; margin-top: 12px;">
+                        <label class="form-label" style="margin-bottom: 8px;">Select Days</label>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="task-day" value="0"> Sun
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="task-day" value="1"> Mon
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="task-day" value="2"> Tue
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="task-day" value="3"> Wed
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="task-day" value="4"> Thu
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="task-day" value="5"> Fri
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="task-day" value="6"> Sat
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Weekly: Every X weeks -->
+                    <div id="task-weekly-options" style="display: none; margin-top: 12px;">
+                        <label class="form-label">Repeat every</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="number" class="input" id="task-weekly-interval" min="1" max="52" value="1" style="width: 80px;">
+                            <span>week(s)</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                            e.g., 1 = weekly, 2 = biweekly, 3 = every 3 weeks
+                        </div>
+                    </div>
+
+                    <!-- Monthly: Every X months -->
+                    <div id="task-monthly-options" style="display: none; margin-top: 12px;">
+                        <label class="form-label">Repeat every</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="number" class="input" id="task-monthly-interval" min="1" max="12" value="1" style="width: 80px;">
+                            <span>month(s)</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                            e.g., 1 = monthly, 2 = every 2 months, 3 = quarterly
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -1193,11 +1245,63 @@
 
                 <div class="form-group" id="event-recurring-options" style="display: none;">
                     <label class="form-label">Recurrence Pattern</label>
-                    <select class="select" id="event-recurrence">
+                    <select class="select" id="event-recurrence" onchange="updateRecurringOptions('event')">
                         <option value="daily">Daily</option>
                         <option value="weekly">Weekly</option>
                         <option value="monthly">Monthly</option>
                     </select>
+
+                    <!-- Daily: Select days of week -->
+                    <div id="event-daily-options" style="display: none; margin-top: 12px;">
+                        <label class="form-label" style="margin-bottom: 8px;">Select Days</label>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="event-day" value="0"> Sun
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="event-day" value="1"> Mon
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="event-day" value="2"> Tue
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="event-day" value="3"> Wed
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="event-day" value="4"> Thu
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="event-day" value="5"> Fri
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="event-day" value="6"> Sat
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Weekly: Every X weeks -->
+                    <div id="event-weekly-options" style="display: none; margin-top: 12px;">
+                        <label class="form-label">Repeat every</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="number" class="input" id="event-weekly-interval" min="1" max="52" value="1" style="width: 80px;">
+                            <span>week(s)</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                            e.g., 1 = weekly, 2 = biweekly, 3 = every 3 weeks
+                        </div>
+                    </div>
+
+                    <!-- Monthly: Every X months -->
+                    <div id="event-monthly-options" style="display: none; margin-top: 12px;">
+                        <label class="form-label">Repeat every</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="number" class="input" id="event-monthly-interval" min="1" max="12" value="1" style="width: 80px;">
+                            <span>month(s)</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                            e.g., 1 = monthly, 2 = every 2 months, 3 = quarterly
+                        </div>
+                    </div>
                 </div>
 
                 <div style="display: flex; gap: 12px; margin-top: 24px;">
@@ -2184,6 +2288,11 @@
             document.getElementById('subtasks-container').innerHTML = '';
             document.getElementById('recurring-options').style.display = 'none';
 
+            // Reset recurring checkboxes and intervals
+            document.querySelectorAll('.task-day').forEach(cb => cb.checked = false);
+            document.getElementById('task-weekly-interval').value = 1;
+            document.getElementById('task-monthly-interval').value = 1;
+
             // Populate dependencies dropdown
             const depsSelect = document.getElementById('task-dependencies');
             depsSelect.innerHTML = '';
@@ -2230,6 +2339,22 @@
 
                     if (task.recurring) {
                         document.getElementById('recurring-options').style.display = 'block';
+                        updateRecurringOptions('task');
+
+                        // Populate recurring days
+                        if (task.recurringDays && task.recurringDays.length > 0) {
+                            document.querySelectorAll('.task-day').forEach(cb => {
+                                cb.checked = task.recurringDays.includes(parseInt(cb.value));
+                            });
+                        }
+
+                        // Populate intervals
+                        if (task.recurringWeeklyInterval) {
+                            document.getElementById('task-weekly-interval').value = task.recurringWeeklyInterval;
+                        }
+                        if (task.recurringMonthlyInterval) {
+                            document.getElementById('task-monthly-interval').value = task.recurringMonthlyInterval;
+                        }
                     }
 
                     if (task.subtasks) {
@@ -2245,6 +2370,24 @@
             }
 
             modal.style.display = 'flex';
+        }
+
+        function updateRecurringOptions(type) {
+            const pattern = document.getElementById(`${type}-recurrence`).value;
+
+            // Hide all options first
+            document.getElementById(`${type}-daily-options`).style.display = 'none';
+            document.getElementById(`${type}-weekly-options`).style.display = 'none';
+            document.getElementById(`${type}-monthly-options`).style.display = 'none';
+
+            // Show the appropriate options
+            if (pattern === 'daily') {
+                document.getElementById(`${type}-daily-options`).style.display = 'block';
+            } else if (pattern === 'weekly') {
+                document.getElementById(`${type}-weekly-options`).style.display = 'block';
+            } else if (pattern === 'monthly') {
+                document.getElementById(`${type}-monthly-options`).style.display = 'block';
+            }
         }
 
         function closeTaskModal() {
@@ -2271,6 +2414,9 @@
                 dependencies: Array.from(document.getElementById('task-dependencies').selectedOptions).map(opt => opt.value),
                 recurring: document.getElementById('task-recurring').checked,
                 recurrence: document.getElementById('task-recurrence').value,
+                recurringDays: Array.from(document.querySelectorAll('.task-day:checked')).map(cb => parseInt(cb.value)),
+                recurringWeeklyInterval: parseInt(document.getElementById('task-weekly-interval').value) || 1,
+                recurringMonthlyInterval: parseInt(document.getElementById('task-monthly-interval').value) || 1,
                 subtasks: getSubtasks(),
                 createdAt: currentEditingTask ? tasks.find(t => t.id === currentEditingTask).createdAt : new Date().toISOString(),
                 updatedAt: new Date().toISOString()
@@ -2331,6 +2477,11 @@
             form.reset();
             document.getElementById('event-recurring-options').style.display = 'none';
 
+            // Reset recurring checkboxes and intervals
+            document.querySelectorAll('.event-day').forEach(cb => cb.checked = false);
+            document.getElementById('event-weekly-interval').value = 1;
+            document.getElementById('event-monthly-interval').value = 1;
+
             if (eventId) {
                 // Edit mode
                 const event = events.find(e => e.id === eventId);
@@ -2350,6 +2501,22 @@
 
                     if (event.recurring) {
                         document.getElementById('event-recurring-options').style.display = 'block';
+                        updateRecurringOptions('event');
+
+                        // Populate recurring days
+                        if (event.recurringDays && event.recurringDays.length > 0) {
+                            document.querySelectorAll('.event-day').forEach(cb => {
+                                cb.checked = event.recurringDays.includes(parseInt(cb.value));
+                            });
+                        }
+
+                        // Populate intervals
+                        if (event.recurringWeeklyInterval) {
+                            document.getElementById('event-weekly-interval').value = event.recurringWeeklyInterval;
+                        }
+                        if (event.recurringMonthlyInterval) {
+                            document.getElementById('event-monthly-interval').value = event.recurringMonthlyInterval;
+                        }
                     }
                 }
             } else {
@@ -2382,6 +2549,9 @@
                 description: document.getElementById('event-description').value,
                 recurring: document.getElementById('event-recurring').checked,
                 recurrence: document.getElementById('event-recurrence').value,
+                recurringDays: Array.from(document.querySelectorAll('.event-day:checked')).map(cb => parseInt(cb.value)),
+                recurringWeeklyInterval: parseInt(document.getElementById('event-weekly-interval').value) || 1,
+                recurringMonthlyInterval: parseInt(document.getElementById('event-monthly-interval').value) || 1,
                 createdAt: currentEditingEvent ? events.find(e => e.id === currentEditingEvent).createdAt : new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             };
