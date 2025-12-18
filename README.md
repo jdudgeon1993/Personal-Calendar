@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Taskify Elite ✨</title>
+    <title>Taskify || Planner Dashboard ✨</title>
 
     <!-- External Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -659,12 +659,91 @@
             background: var(--accent-primary);
             color: white;
         }
+
+        /* Loading Screen */
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a24 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        #loading-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .loading-logo {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 30px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(99, 102, 241, 0.2);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            animation: fade 1.5s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes fade {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        /* Focus Mode Overlay */
+        #focus-mode-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 15, 0.98);
+            z-index: 9999;
+            overflow-y: auto;
+        }
+
+        #focus-mode-overlay.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loading-logo">Taskify || Planner</div>
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading your dashboard...</div>
+    </div>
+
     <!-- Header Bar -->
     <div class="header-bar">
-        <h1 class="text-2xl font-bold gradient-text">Taskify Elite ✨</h1>
+        <h1 class="text-2xl font-bold gradient-text">Taskify || Planner Dashboard ✨</h1>
         <div style="display: flex; gap: 8px; align-items: center;">
             <div id="sync-indicator" style="display: none; font-size: 12px; color: var(--accent-success); font-weight: 600; padding: 6px 12px; background: rgba(16, 185, 129, 0.1); border-radius: 8px;" title="Sync active">
                 🔄 Synced
@@ -830,11 +909,8 @@
             <div class="timer-display" id="timer-display">25:00</div>
 
             <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
-                <button class="btn btn-primary" style="padding: 16px 48px; font-size: 18px;" onclick="startTimer()">
-                    ▶️ Start
-                </button>
-                <button class="btn btn-secondary" style="padding: 16px 48px; font-size: 18px;" onclick="pauseTimer()">
-                    ⏸️ Pause
+                <button class="btn btn-primary" style="padding: 16px 48px; font-size: 18px;" onclick="enterFocusMode()">
+                    ▶️ Start Focus Session
                 </button>
                 <button class="btn btn-secondary" style="padding: 16px 48px; font-size: 18px;" onclick="resetTimer()">
                     🔄 Reset
@@ -856,6 +932,37 @@
                     <div class="text-2xl font-bold mb-2" id="sessions-completed">0</div>
                     <div class="text-sm text-secondary">Sessions Completed Today</div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Focus Mode Fullscreen Overlay -->
+    <div id="focus-mode-overlay">
+        <div style="max-width: 1200px; margin: 0 auto; padding: 40px 20px;">
+            <!-- Focus Mode Header -->
+            <div style="text-align: center; margin-bottom: 40px;">
+                <h1 class="text-5xl font-bold gradient-text mb-4">🎯 Focus Session</h1>
+                <p class="text-secondary">All other actions are paused. Focus on what matters.</p>
+            </div>
+
+            <!-- Timer Display -->
+            <div class="focus-timer" style="padding: 20px;">
+                <div class="timer-display" id="focus-overlay-timer">25:00</div>
+
+                <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 30px;">
+                    <button class="btn btn-secondary" style="padding: 16px 48px; font-size: 18px;" onclick="pauseFocusMode()">
+                        ⏸️ Pause
+                    </button>
+                    <button class="btn btn-secondary" style="padding: 16px 48px; font-size: 18px; background: var(--accent-danger); color: white; border: none;" onclick="exitFocusMode()">
+                        ❌ Exit Focus Mode
+                    </button>
+                </div>
+            </div>
+
+            <!-- Today's High Priority Tasks -->
+            <div style="margin-top: 60px;">
+                <h3 class="text-2xl font-bold mb-6">📌 Today's High Priority Tasks</h3>
+                <div id="focus-high-priority-tasks"></div>
             </div>
         </div>
     </div>
@@ -1214,6 +1321,11 @@
             document.getElementById('task-recurring').addEventListener('change', function(e) {
                 document.getElementById('recurring-options').style.display = e.target.checked ? 'block' : 'none';
             });
+
+            // Hide loading screen after everything is loaded
+            setTimeout(() => {
+                document.getElementById('loading-screen').classList.add('hidden');
+            }, 1000);
 
             // Load recurring event checkbox handler
             document.getElementById('event-recurring').addEventListener('change', function(e) {
@@ -1853,6 +1965,103 @@
         }
 
         // Focus Mode (Timer)
+        // Enhanced Focus Mode Functions
+        function enterFocusMode() {
+            // Show overlay
+            document.getElementById('focus-mode-overlay').classList.add('active');
+
+            // Load high priority tasks for today
+            renderFocusModeTasks();
+
+            // Start timer
+            if (!timerRunning) {
+                timerRunning = true;
+                timerInterval = setInterval(() => {
+                    if (timerSeconds > 0) {
+                        timerSeconds--;
+                        updateTimerDisplay();
+                        updateFocusOverlayTimer();
+                    } else {
+                        // Timer completed
+                        pauseFocusMode();
+                        sessionsCompleted++;
+                        document.getElementById('sessions-completed').textContent = sessionsCompleted;
+
+                        // Celebration
+                        confetti({
+                            particleCount: 150,
+                            spread: 100,
+                            origin: { y: 0.6 }
+                        });
+
+                        // Play sound (if supported)
+                        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBi+K0O7Tm0IJHV606+qNRww');
+                        audio.play().catch(() => {});
+
+                        alert('🎉 Focus session complete! Great work!');
+                        exitFocusMode();
+                    }
+                }, 1000);
+            }
+        }
+
+        function exitFocusMode() {
+            // Hide overlay
+            document.getElementById('focus-mode-overlay').classList.remove('active');
+
+            // Stop timer
+            pauseTimer();
+            resetTimer();
+        }
+
+        function pauseFocusMode() {
+            timerRunning = false;
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function renderFocusModeTasks() {
+            const today = getTodayDateString();
+
+            // Get high priority tasks due today
+            const highPriorityTasks = tasks.filter(t =>
+                t.priority === 'high' &&
+                t.dueDate === today &&
+                t.status !== 'done'
+            );
+
+            const container = document.getElementById('focus-high-priority-tasks');
+
+            if (highPriorityTasks.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">✨</div><div>No high priority tasks for today!</div></div>';
+            } else {
+                container.innerHTML = highPriorityTasks.map(task => `
+                    <div class="task-card" style="margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; margin-bottom: 4px; font-size: 18px;">${task.title}</div>
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <span class="tag status-${task.status}">${task.status.replace('-', ' ')}</span>
+                                    ${task.category ? `<span class="tag" style="background: rgba(99, 102, 241, 0.2);">${task.category}</span>` : ''}
+                                    ${task.startTime ? `<span class="tag" style="background: rgba(139, 92, 246, 0.2);">⏰ ${task.startTime}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        ${task.description ? `<div style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">${task.description}</div>` : ''}
+                    </div>
+                `).join('');
+            }
+        }
+
+        function updateFocusOverlayTimer() {
+            const minutes = Math.floor(timerSeconds / 60);
+            const seconds = timerSeconds % 60;
+            const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('focus-overlay-timer').textContent = display;
+        }
+
         function startTimer() {
             if (!timerRunning) {
                 timerRunning = true;
