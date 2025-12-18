@@ -762,6 +762,7 @@
     <div id="hub-view" class="view-container active">
         <h2 class="text-3xl font-bold mb-6">Command Center</h2>
 
+        <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div class="stat-card">
                 <div style="position: relative; z-index: 1;">
@@ -786,24 +787,34 @@
             </div>
         </div>
 
-        <div class="card mb-6">
-            <h3 class="text-xl font-bold mb-4">✅ Today's Tasks</h3>
-            <div id="today-tasks"></div>
+        <!-- Today Section -->
+        <div style="margin-bottom: 24px;">
+            <h2 class="text-2xl font-bold mb-4" style="color: var(--text-primary);">📍 Today</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="card">
+                    <h3 class="text-xl font-bold mb-4">✅ Tasks</h3>
+                    <div id="today-tasks"></div>
+                </div>
+                <div class="card">
+                    <h3 class="text-xl font-bold mb-4">📅 Events</h3>
+                    <div id="today-events"></div>
+                </div>
+            </div>
         </div>
 
-        <div class="card mb-6">
-            <h3 class="text-xl font-bold mb-4">📅 Today's Events</h3>
-            <div id="today-events"></div>
+        <!-- Upcoming Section -->
+        <div style="margin-bottom: 24px;">
+            <h2 class="text-2xl font-bold mb-4" style="color: var(--text-primary);">🗓️ Upcoming</h2>
+            <div class="card">
+                <h3 class="text-xl font-bold mb-4">Next 7 Days</h3>
+                <div id="upcoming-events"></div>
+            </div>
         </div>
 
-        <div class="card mb-6">
-            <h3 class="text-xl font-bold mb-4">🗓️ Upcoming Events</h3>
-            <div id="upcoming-events"></div>
-        </div>
-
+        <!-- Quick Stats -->
         <div class="card mb-6">
             <h3 class="text-xl font-bold mb-4">🎯 Quick Stats</h3>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                     <div class="text-sm text-secondary">High Priority</div>
                     <div class="text-2xl font-bold" id="high-priority-count">0</div>
@@ -823,6 +834,7 @@
             </div>
         </div>
 
+        <!-- All Tasks -->
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <h3 class="text-xl font-bold">📋 All Tasks</h3>
@@ -1108,11 +1120,63 @@
 
                 <div class="form-group" id="recurring-options" style="display: none;">
                     <label class="form-label">Recurrence Pattern</label>
-                    <select class="select" id="task-recurrence">
+                    <select class="select" id="task-recurrence" onchange="updateRecurringOptions('task')">
                         <option value="daily">Daily</option>
                         <option value="weekly">Weekly</option>
                         <option value="monthly">Monthly</option>
                     </select>
+
+                    <!-- Daily: Select days of week -->
+                    <div id="task-daily-options" style="display: none; margin-top: 12px;">
+                        <label class="form-label" style="margin-bottom: 8px;">Select Days</label>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="task-day" value="0"> Sun
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="task-day" value="1"> Mon
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="task-day" value="2"> Tue
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="task-day" value="3"> Wed
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="task-day" value="4"> Thu
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="task-day" value="5"> Fri
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="task-day" value="6"> Sat
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Weekly: Every X weeks -->
+                    <div id="task-weekly-options" style="display: none; margin-top: 12px;">
+                        <label class="form-label">Repeat every</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="number" class="input" id="task-weekly-interval" min="1" max="52" value="1" style="width: 80px;">
+                            <span>week(s)</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                            e.g., 1 = weekly, 2 = biweekly, 3 = every 3 weeks
+                        </div>
+                    </div>
+
+                    <!-- Monthly: Every X months -->
+                    <div id="task-monthly-options" style="display: none; margin-top: 12px;">
+                        <label class="form-label">Repeat every</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="number" class="input" id="task-monthly-interval" min="1" max="12" value="1" style="width: 80px;">
+                            <span>month(s)</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                            e.g., 1 = monthly, 2 = every 2 months, 3 = quarterly
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -1193,11 +1257,63 @@
 
                 <div class="form-group" id="event-recurring-options" style="display: none;">
                     <label class="form-label">Recurrence Pattern</label>
-                    <select class="select" id="event-recurrence">
+                    <select class="select" id="event-recurrence" onchange="updateRecurringOptions('event')">
                         <option value="daily">Daily</option>
                         <option value="weekly">Weekly</option>
                         <option value="monthly">Monthly</option>
                     </select>
+
+                    <!-- Daily: Select days of week -->
+                    <div id="event-daily-options" style="display: none; margin-top: 12px;">
+                        <label class="form-label" style="margin-bottom: 8px;">Select Days</label>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="event-day" value="0"> Sun
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="event-day" value="1"> Mon
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="event-day" value="2"> Tue
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="event-day" value="3"> Wed
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="event-day" value="4"> Thu
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="event-day" value="5"> Fri
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 14px;">
+                                <input type="checkbox" class="event-day" value="6"> Sat
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Weekly: Every X weeks -->
+                    <div id="event-weekly-options" style="display: none; margin-top: 12px;">
+                        <label class="form-label">Repeat every</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="number" class="input" id="event-weekly-interval" min="1" max="52" value="1" style="width: 80px;">
+                            <span>week(s)</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                            e.g., 1 = weekly, 2 = biweekly, 3 = every 3 weeks
+                        </div>
+                    </div>
+
+                    <!-- Monthly: Every X months -->
+                    <div id="event-monthly-options" style="display: none; margin-top: 12px;">
+                        <label class="form-label">Repeat every</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="number" class="input" id="event-monthly-interval" min="1" max="12" value="1" style="width: 80px;">
+                            <span>month(s)</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                            e.g., 1 = monthly, 2 = every 2 months, 3 = quarterly
+                        </div>
+                    </div>
                 </div>
 
                 <div style="display: flex; gap: 12px; margin-top: 24px;">
@@ -1314,6 +1430,10 @@
         document.addEventListener('DOMContentLoaded', function() {
             loadTasks();
             loadEvents();
+
+            // Generate recurring instances after loading data
+            generateRecurringInstances();
+
             loadNotes();
             loadTheme();
             loadSettings();
@@ -1452,15 +1572,19 @@
 
         // Hub View (Dashboard)
         function renderHub() {
-            const total = tasks.length;
-            const completed = tasks.filter(t => t.status === 'done').length;
-            const active = tasks.filter(t => t.status === 'in-progress').length;
+            // Filter out recurring templates (only show actual instances and non-recurring tasks)
+            const visibleTasks = tasks.filter(t => !t.isRecurringTemplate);
+            const visibleEvents = events.filter(e => !e.isRecurringTemplate);
+
+            const total = visibleTasks.length;
+            const completed = visibleTasks.filter(t => t.status === 'done').length;
+            const active = visibleTasks.filter(t => t.status === 'in-progress').length;
             const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-            const highPriority = tasks.filter(t => t.priority === 'high' && t.status !== 'done').length;
+            const highPriority = visibleTasks.filter(t => t.priority === 'high' && t.status !== 'done').length;
 
             // Calculate overdue
             const today = getTodayDateString();
-            const overdue = tasks.filter(t => t.dueDate && t.dueDate < today && t.status !== 'done').length;
+            const overdue = visibleTasks.filter(t => t.dueDate && t.dueDate < today && t.status !== 'done').length;
 
             // Calculate this week's tasks
             const weekFromNow = new Date();
@@ -1469,7 +1593,7 @@
             const month = String(weekFromNow.getMonth() + 1).padStart(2, '0');
             const day = String(weekFromNow.getDate()).padStart(2, '0');
             const weekFromNowStr = `${year}-${month}-${day}`;
-            const thisWeek = tasks.filter(t => t.dueDate && t.dueDate <= weekFromNowStr && t.dueDate >= today).length;
+            const thisWeek = visibleTasks.filter(t => t.dueDate && t.dueDate <= weekFromNowStr && t.dueDate >= today).length;
 
             document.getElementById('completion-rate').textContent = `${completionRate}%`;
             document.getElementById('completed-count').textContent = completed;
@@ -1480,7 +1604,7 @@
             document.getElementById('total-count').textContent = total;
 
             // Render today's tasks
-            const todayTasks = tasks.filter(t => {
+            const todayTasks = visibleTasks.filter(t => {
                 if (!t.dueDate) return false;
                 return t.dueDate === today && t.status !== 'done';
             });
@@ -1508,7 +1632,7 @@
             }
 
             // Render today's events
-            const todayEvents = events.filter(e => e.date === today);
+            const todayEvents = visibleEvents.filter(e => e.date === today);
             const eventsContainer = document.getElementById('today-events');
             if (todayEvents.length === 0) {
                 eventsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📅</div><div>No events scheduled today</div></div>';
@@ -1533,7 +1657,7 @@
             // Render upcoming events (next 7 days, excluding today)
             const weekFromNowDate = new Date();
             weekFromNowDate.setDate(weekFromNowDate.getDate() + 7);
-            const upcomingEvents = events.filter(e => e.date > today && e.date <= weekFromNowStr).sort((a, b) => {
+            const upcomingEvents = visibleEvents.filter(e => e.date > today && e.date <= weekFromNowStr).sort((a, b) => {
                 if (a.date === b.date) return a.startTime.localeCompare(b.startTime);
                 return a.date.localeCompare(b.date);
             });
@@ -1571,20 +1695,20 @@
             let filteredTasks = [];
             switch(filterValue) {
                 case 'active':
-                    filteredTasks = tasks.filter(t => t.status !== 'done');
+                    filteredTasks = visibleTasks.filter(t => t.status !== 'done');
                     break;
                 case 'overdue':
-                    filteredTasks = tasks.filter(t => t.dueDate && t.dueDate < today && t.status !== 'done');
+                    filteredTasks = visibleTasks.filter(t => t.dueDate && t.dueDate < today && t.status !== 'done');
                     break;
                 case 'upcoming':
-                    filteredTasks = tasks.filter(t => t.dueDate && t.dueDate >= today && t.status !== 'done');
+                    filteredTasks = visibleTasks.filter(t => t.dueDate && t.dueDate >= today && t.status !== 'done');
                     break;
                 case 'completed':
-                    filteredTasks = tasks.filter(t => t.status === 'done');
+                    filteredTasks = visibleTasks.filter(t => t.status === 'done');
                     break;
                 case 'all':
                 default:
-                    filteredTasks = [...tasks];
+                    filteredTasks = [...visibleTasks];
                     break;
             }
 
@@ -1661,8 +1785,8 @@
             // Clear columns
             Object.values(columns).forEach(col => col.innerHTML = '');
 
-            // Filter tasks
-            let filteredTasks = tasks;
+            // Filter out recurring templates (only show actual instances and non-recurring tasks)
+            let filteredTasks = tasks.filter(t => !t.isRecurringTemplate);
             const searchTerm = document.getElementById('board-search')?.value.toLowerCase();
             if (searchTerm) {
                 filteredTasks = filteredTasks.filter(t =>
@@ -2184,6 +2308,11 @@
             document.getElementById('subtasks-container').innerHTML = '';
             document.getElementById('recurring-options').style.display = 'none';
 
+            // Reset recurring checkboxes and intervals
+            document.querySelectorAll('.task-day').forEach(cb => cb.checked = false);
+            document.getElementById('task-weekly-interval').value = 1;
+            document.getElementById('task-monthly-interval').value = 1;
+
             // Populate dependencies dropdown
             const depsSelect = document.getElementById('task-dependencies');
             depsSelect.innerHTML = '';
@@ -2230,6 +2359,22 @@
 
                     if (task.recurring) {
                         document.getElementById('recurring-options').style.display = 'block';
+                        updateRecurringOptions('task');
+
+                        // Populate recurring days
+                        if (task.recurringDays && task.recurringDays.length > 0) {
+                            document.querySelectorAll('.task-day').forEach(cb => {
+                                cb.checked = task.recurringDays.includes(parseInt(cb.value));
+                            });
+                        }
+
+                        // Populate intervals
+                        if (task.recurringWeeklyInterval) {
+                            document.getElementById('task-weekly-interval').value = task.recurringWeeklyInterval;
+                        }
+                        if (task.recurringMonthlyInterval) {
+                            document.getElementById('task-monthly-interval').value = task.recurringMonthlyInterval;
+                        }
                     }
 
                     if (task.subtasks) {
@@ -2245,6 +2390,24 @@
             }
 
             modal.style.display = 'flex';
+        }
+
+        function updateRecurringOptions(type) {
+            const pattern = document.getElementById(`${type}-recurrence`).value;
+
+            // Hide all options first
+            document.getElementById(`${type}-daily-options`).style.display = 'none';
+            document.getElementById(`${type}-weekly-options`).style.display = 'none';
+            document.getElementById(`${type}-monthly-options`).style.display = 'none';
+
+            // Show the appropriate options
+            if (pattern === 'daily') {
+                document.getElementById(`${type}-daily-options`).style.display = 'block';
+            } else if (pattern === 'weekly') {
+                document.getElementById(`${type}-weekly-options`).style.display = 'block';
+            } else if (pattern === 'monthly') {
+                document.getElementById(`${type}-monthly-options`).style.display = 'block';
+            }
         }
 
         function closeTaskModal() {
@@ -2271,6 +2434,10 @@
                 dependencies: Array.from(document.getElementById('task-dependencies').selectedOptions).map(opt => opt.value),
                 recurring: document.getElementById('task-recurring').checked,
                 recurrence: document.getElementById('task-recurrence').value,
+                recurringDays: Array.from(document.querySelectorAll('.task-day:checked')).map(cb => parseInt(cb.value)),
+                recurringWeeklyInterval: parseInt(document.getElementById('task-weekly-interval').value) || 1,
+                recurringMonthlyInterval: parseInt(document.getElementById('task-monthly-interval').value) || 1,
+                isRecurringTemplate: document.getElementById('task-recurring').checked, // Mark as template if recurring
                 subtasks: getSubtasks(),
                 createdAt: currentEditingTask ? tasks.find(t => t.id === currentEditingTask).createdAt : new Date().toISOString(),
                 updatedAt: new Date().toISOString()
@@ -2301,6 +2468,11 @@
             saveTasks();
             closeTaskModal();
 
+            // Generate recurring instances if this is a recurring task
+            if (taskData.recurring && taskData.isRecurringTemplate) {
+                generateRecurringInstances();
+            }
+
             // Show success message
             showNotification(currentEditingTask ? 'Task updated!' : 'Task created!', 'success');
         }
@@ -2308,11 +2480,58 @@
         function deleteTask() {
             if (!currentEditingTask) return;
 
-            if (confirm('Are you sure you want to delete this task?')) {
-                tasks = tasks.filter(t => t.id !== currentEditingTask);
-                saveTasks();
-                closeTaskModal();
-                showNotification('Task deleted!', 'success');
+            const task = tasks.find(t => t.id === currentEditingTask);
+            if (!task) return;
+
+            // Check if this is a recurring instance
+            if (task.recurringParentId) {
+                const choice = confirm(
+                    '⚠️ This is a recurring task instance.\n\n' +
+                    'Click OK to delete ONLY this occurrence\n' +
+                    'Click Cancel to delete ALL FUTURE occurrences'
+                );
+
+                if (choice) {
+                    // Delete only this instance
+                    tasks = tasks.filter(t => t.id !== currentEditingTask);
+                    saveTasks();
+                    closeTaskModal();
+                    showNotification('Task occurrence deleted!', 'success');
+                } else {
+                    // Delete all future occurrences (and the template)
+                    const instanceDate = task.instanceDate;
+                    tasks = tasks.filter(t => {
+                        // Keep if not related to this recurring series
+                        if (t.recurringParentId !== task.recurringParentId && t.id !== task.recurringParentId) {
+                            return true;
+                        }
+                        // Keep if it's an instance before this date
+                        if (t.instanceDate && t.instanceDate < instanceDate) {
+                            return true;
+                        }
+                        // Delete template and all future instances
+                        return false;
+                    });
+                    saveTasks();
+                    closeTaskModal();
+                    showNotification('Future occurrences deleted!', 'success');
+                }
+            } else if (task.isRecurringTemplate) {
+                // Deleting the template - confirm deletion of all instances
+                if (confirm('⚠️ This will delete the recurring task and ALL its future occurrences. Continue?')) {
+                    tasks = tasks.filter(t => t.id !== currentEditingTask && t.recurringParentId !== currentEditingTask);
+                    saveTasks();
+                    closeTaskModal();
+                    showNotification('Recurring task deleted!', 'success');
+                }
+            } else {
+                // Regular task deletion
+                if (confirm('Are you sure you want to delete this task?')) {
+                    tasks = tasks.filter(t => t.id !== currentEditingTask);
+                    saveTasks();
+                    closeTaskModal();
+                    showNotification('Task deleted!', 'success');
+                }
             }
         }
 
@@ -2330,6 +2549,11 @@
 
             form.reset();
             document.getElementById('event-recurring-options').style.display = 'none';
+
+            // Reset recurring checkboxes and intervals
+            document.querySelectorAll('.event-day').forEach(cb => cb.checked = false);
+            document.getElementById('event-weekly-interval').value = 1;
+            document.getElementById('event-monthly-interval').value = 1;
 
             if (eventId) {
                 // Edit mode
@@ -2350,6 +2574,22 @@
 
                     if (event.recurring) {
                         document.getElementById('event-recurring-options').style.display = 'block';
+                        updateRecurringOptions('event');
+
+                        // Populate recurring days
+                        if (event.recurringDays && event.recurringDays.length > 0) {
+                            document.querySelectorAll('.event-day').forEach(cb => {
+                                cb.checked = event.recurringDays.includes(parseInt(cb.value));
+                            });
+                        }
+
+                        // Populate intervals
+                        if (event.recurringWeeklyInterval) {
+                            document.getElementById('event-weekly-interval').value = event.recurringWeeklyInterval;
+                        }
+                        if (event.recurringMonthlyInterval) {
+                            document.getElementById('event-monthly-interval').value = event.recurringMonthlyInterval;
+                        }
                     }
                 }
             } else {
@@ -2382,6 +2622,10 @@
                 description: document.getElementById('event-description').value,
                 recurring: document.getElementById('event-recurring').checked,
                 recurrence: document.getElementById('event-recurrence').value,
+                recurringDays: Array.from(document.querySelectorAll('.event-day:checked')).map(cb => parseInt(cb.value)),
+                recurringWeeklyInterval: parseInt(document.getElementById('event-weekly-interval').value) || 1,
+                recurringMonthlyInterval: parseInt(document.getElementById('event-monthly-interval').value) || 1,
+                isRecurringTemplate: document.getElementById('event-recurring').checked, // Mark as template if recurring
                 createdAt: currentEditingEvent ? events.find(e => e.id === currentEditingEvent).createdAt : new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             };
@@ -2399,17 +2643,70 @@
 
             saveEvents();
             closeEventModal();
+
+            // Generate recurring instances if this is a recurring event
+            if (eventData.recurring && eventData.isRecurringTemplate) {
+                generateRecurringInstances();
+            }
+
             showNotification(currentEditingEvent ? 'Event updated!' : 'Event created!', 'success');
         }
 
         function deleteEvent() {
             if (!currentEditingEvent) return;
 
-            if (confirm('Are you sure you want to delete this event?')) {
-                events = events.filter(e => e.id !== currentEditingEvent);
-                saveEvents();
-                closeEventModal();
-                showNotification('Event deleted!', 'success');
+            const event = events.find(e => e.id === currentEditingEvent);
+            if (!event) return;
+
+            // Check if this is a recurring instance
+            if (event.recurringParentId) {
+                const choice = confirm(
+                    '⚠️ This is a recurring event instance.\n\n' +
+                    'Click OK to delete ONLY this occurrence\n' +
+                    'Click Cancel to delete ALL FUTURE occurrences'
+                );
+
+                if (choice) {
+                    // Delete only this instance
+                    events = events.filter(e => e.id !== currentEditingEvent);
+                    saveEvents();
+                    closeEventModal();
+                    showNotification('Event occurrence deleted!', 'success');
+                } else {
+                    // Delete all future occurrences (and the template)
+                    const instanceDate = event.instanceDate;
+                    events = events.filter(e => {
+                        // Keep if not related to this recurring series
+                        if (e.recurringParentId !== event.recurringParentId && e.id !== event.recurringParentId) {
+                            return true;
+                        }
+                        // Keep if it's an instance before this date
+                        if (e.instanceDate && e.instanceDate < instanceDate) {
+                            return true;
+                        }
+                        // Delete template and all future instances
+                        return false;
+                    });
+                    saveEvents();
+                    closeEventModal();
+                    showNotification('Future occurrences deleted!', 'success');
+                }
+            } else if (event.isRecurringTemplate) {
+                // Deleting the template - confirm deletion of all instances
+                if (confirm('⚠️ This will delete the recurring event and ALL its future occurrences. Continue?')) {
+                    events = events.filter(e => e.id !== currentEditingEvent && e.recurringParentId !== currentEditingEvent);
+                    saveEvents();
+                    closeEventModal();
+                    showNotification('Recurring event deleted!', 'success');
+                }
+            } else {
+                // Regular event deletion
+                if (confirm('Are you sure you want to delete this event?')) {
+                    events = events.filter(e => e.id !== currentEditingEvent);
+                    saveEvents();
+                    closeEventModal();
+                    showNotification('Event deleted!', 'success');
+                }
             }
         }
 
@@ -2917,6 +3214,139 @@
         // Utility Functions
         function generateId() {
             return 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Recurring Task/Event Generation
+        function generateRecurringInstances() {
+            const today = new Date();
+            const daysToGenerate = 90; // Generate 3 months ahead
+
+            // Generate recurring tasks
+            const recurringTasks = tasks.filter(t => t.recurring && t.isRecurringTemplate);
+            recurringTasks.forEach(template => {
+                generateTaskInstances(template, today, daysToGenerate);
+            });
+
+            // Generate recurring events
+            const recurringEvents = events.filter(e => e.recurring && e.isRecurringTemplate);
+            recurringEvents.forEach(template => {
+                generateEventInstances(template, today, daysToGenerate);
+            });
+        }
+
+        function generateTaskInstances(template, startDate, daysAhead) {
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + daysAhead);
+
+            const instances = [];
+            let currentDate = new Date(template.dueDate || startDate);
+
+            while (currentDate <= endDate) {
+                if (shouldGenerateInstance(template, currentDate)) {
+                    const dateStr = formatDateString(currentDate);
+
+                    // Check if instance already exists
+                    const existsAlready = tasks.some(t =>
+                        t.recurringParentId === template.id && t.instanceDate === dateStr
+                    );
+
+                    if (!existsAlready) {
+                        const instance = {
+                            ...template,
+                            id: generateId(),
+                            recurringParentId: template.id,
+                            instanceDate: dateStr,
+                            isRecurringTemplate: false,
+                            dueDate: dateStr,
+                            status: 'not-started', // Reset status for new instances
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString()
+                        };
+                        instances.push(instance);
+                    }
+                }
+
+                // Move to next potential date
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            if (instances.length > 0) {
+                tasks.push(...instances);
+                saveTasks();
+            }
+        }
+
+        function generateEventInstances(template, startDate, daysAhead) {
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + daysAhead);
+
+            const instances = [];
+            let currentDate = new Date(template.date || startDate);
+
+            while (currentDate <= endDate) {
+                if (shouldGenerateInstance(template, currentDate)) {
+                    const dateStr = formatDateString(currentDate);
+
+                    // Check if instance already exists
+                    const existsAlready = events.some(e =>
+                        e.recurringParentId === template.id && e.instanceDate === dateStr
+                    );
+
+                    if (!existsAlready) {
+                        const instance = {
+                            ...template,
+                            id: generateId(),
+                            recurringParentId: template.id,
+                            instanceDate: dateStr,
+                            isRecurringTemplate: false,
+                            date: dateStr,
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString()
+                        };
+                        instances.push(instance);
+                    }
+                }
+
+                // Move to next potential date
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            if (instances.length > 0) {
+                events.push(...instances);
+                saveEvents();
+            }
+        }
+
+        function shouldGenerateInstance(template, date) {
+            const { recurrence, recurringDays, recurringWeeklyInterval, recurringMonthlyInterval } = template;
+            const startDate = new Date(template.dueDate || template.date);
+
+            if (recurrence === 'daily') {
+                // Check if this day of week is selected
+                const dayOfWeek = date.getDay();
+                return recurringDays && recurringDays.includes(dayOfWeek);
+            } else if (recurrence === 'weekly') {
+                // Check if correct week interval
+                const daysDiff = Math.floor((date - startDate) / (1000 * 60 * 60 * 24));
+                const weeksDiff = Math.floor(daysDiff / 7);
+                const interval = recurringWeeklyInterval || 1;
+                return weeksDiff % interval === 0 && date.getDay() === startDate.getDay();
+            } else if (recurrence === 'monthly') {
+                // Check if correct month interval and same day of month
+                const monthsDiff = (date.getFullYear() - startDate.getFullYear()) * 12 +
+                                   (date.getMonth() - startDate.getMonth());
+                const interval = recurringMonthlyInterval || 1;
+                return monthsDiff % interval === 0 && date.getDate() === startDate.getDate();
+            }
+
+            return false;
+        }
+
+        function formatDateString(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
         }
 
         function updateHeaderDateTime() {
