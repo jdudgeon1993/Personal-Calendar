@@ -2,5 +2,4 @@ services:
   - type: web
     name: taskify-planner-dashboard
     env: static
-    buildCommand: cp README.md index.html
-    staticPublishPath: .
+    staticPublishPath: ./
