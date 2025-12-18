@@ -712,7 +712,7 @@
             <div id="today-events"></div>
         </div>
 
-        <div class="card">
+        <div class="card mb-6">
             <h3 class="text-xl font-bold mb-4">🎯 Quick Stats</h3>
             <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -732,6 +732,20 @@
                     <div class="text-2xl font-bold" id="total-count">0</div>
                 </div>
             </div>
+        </div>
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 class="text-xl font-bold">📋 All Tasks</h3>
+                <select id="task-filter" class="select" style="width: auto; padding: 8px 12px;" onchange="renderHub()">
+                    <option value="active">Active Tasks</option>
+                    <option value="all">All Tasks</option>
+                    <option value="overdue">Overdue</option>
+                    <option value="upcoming">Upcoming</option>
+                    <option value="completed">Completed</option>
+                </select>
+            </div>
+            <div id="all-tasks-list"></div>
         </div>
     </div>
 
@@ -1384,6 +1398,68 @@
                     </div>
                 `).join('');
             }
+
+            // Render all tasks list
+            const filterSelect = document.getElementById('task-filter');
+            const filterValue = filterSelect ? filterSelect.value : 'active';
+
+            let filteredTasks = [];
+            switch(filterValue) {
+                case 'active':
+                    filteredTasks = tasks.filter(t => t.status !== 'done');
+                    break;
+                case 'overdue':
+                    filteredTasks = tasks.filter(t => t.dueDate && t.dueDate < today && t.status !== 'done');
+                    break;
+                case 'upcoming':
+                    filteredTasks = tasks.filter(t => t.dueDate && t.dueDate >= today && t.status !== 'done');
+                    break;
+                case 'completed':
+                    filteredTasks = tasks.filter(t => t.status === 'done');
+                    break;
+                case 'all':
+                default:
+                    filteredTasks = [...tasks];
+                    break;
+            }
+
+            // Sort by due date, then priority
+            filteredTasks.sort((a, b) => {
+                // Sort by due date first
+                if (a.dueDate && b.dueDate) {
+                    if (a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+                } else if (a.dueDate) return -1;
+                else if (b.dueDate) return 1;
+
+                // Then by priority
+                const priorityOrder = { high: 0, medium: 1, low: 2 };
+                return (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1);
+            });
+
+            const allTasksContainer = document.getElementById('all-tasks-list');
+            if (filteredTasks.length === 0) {
+                allTasksContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>No tasks to show</div></div>';
+            } else {
+                allTasksContainer.innerHTML = filteredTasks.map(task => `
+                    <div class="task-card" onclick="editTask('${task.id}')" style="cursor: pointer;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; margin-bottom: 4px;">${task.title}</div>
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <span class="tag priority-${task.priority}">${task.priority}</span>
+                                    <span class="tag status-${task.status}">${task.status.replace('-', ' ')}</span>
+                                    ${task.category ? `<span class="tag" style="background: rgba(99, 102, 241, 0.2);">${task.category}</span>` : ''}
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                ${task.dueDate ? `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">📅 ${formatDate(task.dueDate)}</div>` : ''}
+                                ${task.startTime ? `<div style="font-size: 12px; color: var(--text-secondary);">${task.startTime}</div>` : ''}
+                            </div>
+                        </div>
+                        ${task.description ? `<div style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">${task.description}</div>` : ''}
+                    </div>
+                `).join('');
+            }
         }
 
         // Board View (Kanban)
@@ -1427,20 +1503,19 @@
             });
         }
 
+        // Global flag to track if we're currently dragging
+        let isDraggingTask = false;
+
         function createTaskCard(task) {
             const card = document.createElement('div');
             card.className = 'task-card';
             card.setAttribute('data-id', task.id);
 
-            // Track if this is a drag or a click
-            let isDragging = false;
-            card.addEventListener('mousedown', () => { isDragging = false; });
-            card.addEventListener('mousemove', () => { isDragging = true; });
-            card.addEventListener('mouseup', () => {
-                if (!isDragging) {
+            // Use click event which doesn't fire after drag
+            card.addEventListener('click', (e) => {
+                if (!isDraggingTask) {
                     editTask(task.id);
                 }
-                isDragging = false;
             });
 
             let tagsHTML = '';
@@ -1515,6 +1590,9 @@
                         animation: 150,
                         ghostClass: 'sortable-ghost',
                         dragClass: 'sortable-drag',
+                        onStart: function(evt) {
+                            isDraggingTask = true;
+                        },
                         onEnd: function(evt) {
                             const taskId = evt.item.getAttribute('data-id');
                             const newStatus = statusMap[evt.to.id];
@@ -1533,6 +1611,11 @@
                                     });
                                 }
                             }
+
+                            // Reset drag flag after a short delay to prevent click from firing
+                            setTimeout(() => {
+                                isDraggingTask = false;
+                            }, 100);
                         }
                     });
                 }
