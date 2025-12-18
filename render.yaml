@@ -2,4 +2,5 @@ services:
   - type: web
     name: taskify-planner-dashboard
     env: static
+    buildCommand: echo "Static site - no build needed"
     staticPublishPath: ./
