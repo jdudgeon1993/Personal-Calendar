@@ -1404,9 +1404,21 @@
                 </div>
             </div>
 
+            <div class="card mb-4">
+                <h3 class="text-lg font-bold mb-4">🔗 Quick Links</h3>
+                <div style="display: flex; gap: 12px; flex-direction: column;">
+                    <a href="https://commute-dashboard.onrender.com" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="width: 100%; text-decoration: none; text-align: center; display: block;">
+                        🚗 Commute Dashboard
+                    </a>
+                    <a href="https://smart-pantry.onrender.com" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="width: 100%; text-decoration: none; text-align: center; display: block;">
+                        🍽️ Smart Pantry
+                    </a>
+                </div>
+            </div>
+
             <div class="card">
                 <h3 class="text-lg font-bold mb-2">About</h3>
-                <p class="text-sm text-secondary">Taskify Elite v2.0</p>
+                <p class="text-sm text-secondary">Taskify || Planner Dashboard v2.0</p>
                 <p class="text-sm text-secondary">Modern task management for productive people</p>
             </div>
         </div>
@@ -2855,8 +2867,17 @@
                 // Update UI
                 showLoggedInStatus(tokenInput);
                 document.getElementById('sync-token-input').value = '';
+                statusDiv.textContent = '';
+
+                // Re-render views with new data
+                renderHub();
+                renderBoard();
+                renderPulse();
 
                 showNotification(`Logged in! Synced ${newTasks.length} tasks and ${newEvents.length} events`, 'success');
+
+                // Close modal after successful login
+                setTimeout(() => closeSettingsModal(), 500);
             } catch (error) {
                 statusDiv.textContent = `❌ ${error.message || 'Login failed. Check your connection.'}`;
                 statusDiv.style.color = 'var(--accent-danger)';
@@ -2869,7 +2890,9 @@
             if (token) {
                 localStorage.setItem('taskify_sync_token', token);
                 showLoggedInStatus(token);
+                document.getElementById('sync-token-display').style.display = 'none';
                 showNotification('Logged in with this token!', 'success');
+                setTimeout(() => closeSettingsModal(), 500);
             }
         }
 
